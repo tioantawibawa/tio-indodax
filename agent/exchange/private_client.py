@@ -89,7 +89,13 @@ class PrivateReadOnlyClient:
         if not api_key or not secret:
             raise ValueError("api_key and secret are required")
         self._key, self._secret = api_key, secret
-        self._v2_key, self._v2_secret = (v2_api_key or api_key), (v2_secret or secret)
+        # a dedicated v2 key is only used together with its own secret; a half-filled pair would
+        # produce invalid signatures, so fall back to the main credentials instead
+        self.v2_pair_incomplete = bool(v2_api_key) != bool(v2_secret)
+        if v2_api_key and v2_secret:
+            self._v2_key, self._v2_secret = v2_api_key, v2_secret
+        else:
+            self._v2_key, self._v2_secret = api_key, secret
         self.tapi_url = tapi_url
         self.v2_base_url = v2_base_url.rstrip("/")
         self.recv_window_ms = recv_window_ms
@@ -208,6 +214,8 @@ class PrivateReadOnlyClient:
     async def permission_report(self) -> PermissionReport:
         """Probe both backends; report what works and whether withdrawals look possible."""
         notes: list[str] = []
+        if self.v2_pair_incomplete:
+            notes.append("INDODAX_V2_API_KEY/SECRET hanya terisi sebagian — diabaikan; memakai key utama")
         legacy_ok = v2_ok = None
         withdraw = can_trade = None
         try:

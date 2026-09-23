@@ -114,3 +114,18 @@ def test_repr_hides_credentials(pc):
 def test_missing_credentials_rejected():
     with pytest.raises(ValueError):
         PrivateReadOnlyClient("", "x")
+
+
+@respx.mock
+async def test_half_filled_v2_pair_is_ignored():
+    c = PrivateReadOnlyClient(KEY, SECRET, v2_api_key="OTHERKEY", v2_secret=None,
+                              clock=Clock(now=lambda: 1_700_000_000.0), sleep=_nosleep)
+    route = respx.get(url__startswith=f"{V2}/api/v2/account").mock(return_value=httpx.Response(200, json={
+        "canTrade": True, "canWithdraw": False, "balances": []}))
+    respx.post(TAPI).mock(return_value=httpx.Response(200, json={"success": 1, "return": {}}))
+    rep = await c.permission_report()
+    req = route.calls[0].request
+    assert req.headers["X-APIKEY"] == KEY                      # main key, not the orphaned v2 key
+    assert req.headers["Sign"] == sign_sha256(SECRET, req.url.query.decode())
+    assert any("sebagian" in n for n in rep.notes)
+    await c.aclose()
