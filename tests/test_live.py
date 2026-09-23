@@ -361,3 +361,16 @@ async def test_clock_job_updates_trade_client_offset(live_env):
 
     await r.check_clock_job(Pub())
     assert fx.clock.offset_ms == -230
+
+
+async def test_preflight_never_raises(tmp_path):
+    s = settings(market={"whitelist": PAIRS})
+    db = Database(tmp_path / "x.db")
+    fx, notes = FakeExchange(), RecordingNotifier()
+
+    async def boom():
+        raise RuntimeError("unexpected")
+    fx.permission_report = boom
+    pre = await _pre(s, db, fx, DeadmanSwitch(fx, PAIRS, 120000, notes))
+    assert not pre.ok and "preflight error" in pre.problems[0]
+    db.close()

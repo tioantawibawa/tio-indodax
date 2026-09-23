@@ -35,6 +35,16 @@ class Preflight:
 async def live_preflight(settings: Settings, db: Database, client: LiveTradeClient, deadman: DeadmanSwitch,
                          portfolio: Portfolio, is_ours, clock_offset_ms: int | None,
                          telegram_connected: bool) -> Preflight:
+    """Never raises: any unexpected error becomes a refusal reason."""
+    try:
+        return await _preflight(settings, db, client, deadman, portfolio, is_ours, clock_offset_ms,
+                                telegram_connected)
+    except Exception as e:  # noqa: BLE001
+        return Preflight(problems=[f"preflight error: {type(e).__name__}: {e}"[:200]])
+
+
+async def _preflight(settings, db, client, deadman, portfolio, is_ours, clock_offset_ms,
+                     telegram_connected) -> Preflight:
     pf = Preflight()
     if not telegram_connected:
         pf.problems.append("Telegram belum tersambung (wajib untuk mode live)")

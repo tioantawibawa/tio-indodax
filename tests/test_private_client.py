@@ -155,3 +155,11 @@ async def test_half_filled_v2_pair_is_ignored():
     assert req.headers["Sign"] == sign_sha256(SECRET, req.url.query.decode())
     assert any("sebagian" in n for n in rep.notes)
     await c.aclose()
+
+
+@respx.mock
+async def test_permission_report_survives_network_errors(pc):
+    respx.post(TAPI).mock(side_effect=httpx.ConnectError("down"))
+    respx.get(url__startswith=f"{V2}/api/v2/account").mock(side_effect=httpx.ConnectError("down"))
+    rep = await pc.permission_report()
+    assert rep.legacy_ok is False and rep.v2_ok is False and rep.withdraw_possible is None

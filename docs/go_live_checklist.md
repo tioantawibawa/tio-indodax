@@ -53,7 +53,8 @@ sudo systemctl restart indodax-agent
 sudo journalctl -u indodax-agent -n 40 --no-pager
 ```
 - [ ] Telegram menerima **⚠️ MODE LIVE** + limit aktif + "Deadman Switch aktif". Jika menerima
-      **⛔ Mode LIVE ditolak**, perbaiki semua butir yang disebut lalu restart.
+      **⛔ Mode LIVE ditolak**, service berhenti (tidak restart otomatis). Perbaiki semua butir yang
+      disebut, lalu `sudo systemctl restart indodax-agent` — atau kembali ke `MODE=paper`.
 - [ ] `/status` menunjukkan mode LIVE, RUNNING.
 
 ## F. Selama live

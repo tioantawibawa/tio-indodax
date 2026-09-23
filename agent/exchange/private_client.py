@@ -21,7 +21,7 @@ from typing import Any
 import httpx
 import structlog
 
-from .errors import IndodaxAPIError, IndodaxNetworkError, IndodaxResponseFormatError
+from .errors import IndodaxAPIError, IndodaxError, IndodaxNetworkError, IndodaxResponseFormatError
 from .models import D
 from .pairs import to_symbol, to_ticker_id
 from .rate_limiter import AsyncRateLimiter
@@ -235,7 +235,7 @@ class PrivateReadOnlyClient:
             if ws == 1:
                 # account-level flag, not the key's permission -> informational only
                 notes.append("legacy getInfo: withdraw_status=1 (account-level; says nothing about this key)")
-        except IndodaxAPIError as e:
+        except IndodaxError as e:
             legacy_ok = False
             notes.append(f"legacy /tapi not usable: {e}")
         if legacy_ok:
@@ -250,6 +250,8 @@ class PrivateReadOnlyClient:
                     notes.append("legacy withdrawFee ditolak (no permission) -> key TANPA izin withdraw")
                 else:
                     notes.append(f"legacy withdrawFee: hasil tidak pasti ({e})")
+            except IndodaxError as e:
+                notes.append(f"legacy withdrawFee: tidak bisa dicek ({type(e).__name__})")
         try:
             _, can_trade, can_withdraw = await self.account_v2()
             v2_ok = True
@@ -258,7 +260,7 @@ class PrivateReadOnlyClient:
                 notes.append("v2 /account: canWithdraw=true")
             elif can_withdraw is False and withdraw is None:
                 withdraw = False
-        except IndodaxAPIError as e:
+        except IndodaxError as e:
             v2_ok = False
             notes.append(f"v2 API not usable: {e}")
         return PermissionReport(legacy_ok, v2_ok, withdraw, can_trade, notes)

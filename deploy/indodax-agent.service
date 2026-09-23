@@ -12,6 +12,8 @@ Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/opt/indodax-agent/.venv/bin/python -m agent.main
 Restart=always
 RestartSec=15
+# exit 3 = configuration refused (e.g. live preflight failed): fix .env, then restart manually
+RestartPreventExitStatus=3
 # graceful stop: agent handles SIGTERM
 KillSignal=SIGTERM
 TimeoutStopSec=30
