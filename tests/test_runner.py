@@ -238,3 +238,43 @@ async def test_main_refuses_live_with_world_readable_env(tmp_path, monkeypatch):
     (tmp_path / "config").mkdir()
     shutil.copy(ROOT / "config/settings.yaml", tmp_path / "config/settings.yaml")
     assert await m.run(str(env)) == 3
+
+
+async def test_go_live_review_sends_status_on_date_and_repeats_until_ready(env):
+    from datetime import date, datetime, timezone
+    make, db, md, clock, notes, _ = env
+    r = make()
+    r.s = r.s.model_copy(update={"reporting": r.s.reporting.model_copy(
+        update={"go_live_review_date": date(2026, 10, 7), "go_live_review_time": "09:00"})})
+    await r.update_clock(30)
+    clock.t = datetime(2026, 10, 7, 1, 59, tzinfo=timezone.utc)          # 08:59 WIB
+    assert not await r.go_live_review()
+    clock.t = datetime(2026, 10, 7, 2, 0, tzinfo=timezone.utc)           # 09:00 WIB
+    assert await r.go_live_review()                                      # not ready: 0 paper days
+    msg = "\n".join(notes.messages[-2:])
+    assert "Review go-live" in msg and "belum" in msg and "<b>Status</b>" in msg and "❌ hari paper" in msg
+    clock.t = datetime(2026, 10, 7, 5, 0, tzinfo=timezone.utc)
+    assert not await r.go_live_review()                                  # once per day
+    for i in range(14):
+        db.upsert_daily_pnl(f"2026-09-{23 + i:02d}" if 23 + i <= 30 else f"2026-10-{i - 7:02d}", "paper",
+                            start_equity=D(500000), end_equity=D(500000))
+    clock.t = datetime(2026, 10, 8, 2, 5, tzinfo=timezone.utc)
+    n = len(notes.messages)
+    assert await r.go_live_review()
+    msg = "\n".join(notes.messages[n:])
+    assert "semua syarat otomatis terpenuhi" in msg and "❌" not in msg and "Langkah berikut" in msg
+    clock.t = datetime(2026, 10, 9, 2, 5, tzinfo=timezone.utc)
+    assert not await r.go_live_review()                                  # done: never again
+
+
+async def test_go_live_review_waits_for_telegram(env):
+    from datetime import date, datetime, timezone
+    make, db, md, clock, notes, _ = env
+    r = make()
+    r.s = r.s.model_copy(update={"reporting": r.s.reporting.model_copy(
+        update={"go_live_review_date": date(2026, 10, 7)})})
+    notes.available = False
+    clock.t = datetime(2026, 10, 7, 3, 0, tzinfo=timezone.utc)
+    assert not await r.go_live_review()
+    notes.available = True
+    assert await r.go_live_review()

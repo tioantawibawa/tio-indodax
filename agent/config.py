@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import stat
+from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -140,12 +141,16 @@ class LiveGateSettings(_Frozen):
 class ReportingSettings(_Frozen):
     timezone: str = "Asia/Jakarta"
     daily_report_time: str = "21:00"
+    # paper mode: from this date, send /status + a go-live readiness check to Telegram at
+    # go_live_review_time (repeated daily until ready). None = disabled.
+    go_live_review_date: date | None = None
+    go_live_review_time: str = "09:00"
 
-    @field_validator("daily_report_time")
+    @field_validator("daily_report_time", "go_live_review_time")
     @classmethod
     def _hhmm(cls, v: str) -> str:
         if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
-            raise ValueError("daily_report_time must be HH:MM")
+            raise ValueError("time must be HH:MM")
         return v
 
 

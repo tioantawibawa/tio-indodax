@@ -41,6 +41,9 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
       anomali, naikkan ke Rp 500.000. (`install.sh` menimpa config dari repo — minta developer mengubahnya.)
 
 ## D. Syarat sebelum MODE=live di akun asli
+Pada 7 Oktober 2026 jam 09:00 WIB agent otomatis mengirim **Review go-live** ke Telegram (`/status` +
+cek kesiapan). Kirim pesan itu dan laporan harian terakhir ke developer.
+
 - [ ] ≥ 14 hari paper trading tercatat (`/status` → "paper days tersimpan").
 - [ ] Laporan harian paper masuk setiap hari; tidak ada error berulang yang belum dijelaskan.
 - [ ] `timedatectl` → `System clock synchronized: yes`; `check_private_api` → clock offset OK.

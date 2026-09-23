@@ -119,6 +119,9 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
   (otomatis lanjut saat jam normal). `HALTED` oleh kill switch drawdown atau `/kill CONFIRM`
   (perlu `/resume`; resume me-reset puncak equity kill switch).
 - Alert: order terisi, stop-loss, batas rugi harian, kill switch, error berulang (3×), agent start.
+- Review go-live otomatis: mulai `reporting.go_live_review_date` (2026-10-07) jam 09:00 WIB, agent paper
+  mengirim `/status` + cek kesiapan (hari paper, status, jam VPS, jumlah error). Bila belum siap, diulang
+  tiap hari jam yang sama sampai siap; setelah siap tidak dikirim lagi.
 - API private hanya read-only (allow-list method); trade/cancel/withdraw ditolak sebelum request dibuat.
 
 ## Mode live (Fase 5)

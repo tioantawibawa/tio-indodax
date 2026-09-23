@@ -57,6 +57,8 @@ live_gate:
 reporting:
   timezone: "Asia/Jakarta"
   daily_report_time: "21:00"
+  go_live_review_date: 2026-10-07                 # paper: /status + go-live readiness to Telegram
+  go_live_review_time: "09:00"                    # WIB; repeated daily until ready
 
 strategy:                                         # tunable; NOT hard limits (see docs/backtest_phase3.md)
   timeframes: ["1D"]                              # daily candles, 00:00 UTC

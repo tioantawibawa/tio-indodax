@@ -161,7 +161,8 @@ async def _shutdown(sched, link, public, db, trade_client) -> None:
 
 
 def build_scheduler(settings, runner, public, link=None, deadman=None):
-    """Jobs: trading cycle, clock check, Telegram reconnect, deadman heartbeat, daily report."""
+    """Jobs: trading cycle, clock check, Telegram reconnect, deadman heartbeat, daily report,
+    go-live review (paper)."""
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from apscheduler.triggers.cron import CronTrigger
 
@@ -179,6 +180,10 @@ def build_scheduler(settings, runner, public, link=None, deadman=None):
                       max_instances=1, coalesce=True)
     sched.add_job(runner.send_daily_report, CronTrigger(hour=int(hh), minute=int(mm), timezone=tz),
                   id="daily_report")
+    if runner.mode == "paper" and settings.reporting.go_live_review_date is not None:
+        # interval (not cron) so a restart after the review time still sends it that day
+        sched.add_job(runner.go_live_review, "interval", minutes=5, id="go_live_review",
+                      max_instances=1, coalesce=True)
     return sched
 
 

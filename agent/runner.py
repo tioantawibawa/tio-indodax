@@ -79,6 +79,7 @@ class AgentRunner:
         self.last_markets: dict[str, PairMarket] = {}
         self.last_features: dict[str, dict[str, TimeframeFeatures]] = {}
         self.last_notes: dict[str, str] = {}
+        self.last_clock_offset_ms: int | None = None
 
     # ------------------------------------------------------------ status
 
@@ -110,6 +111,7 @@ class AgentRunner:
         Returns a note when the status changed."""
         if clock_offset_ms is None:
             return None
+        self.last_clock_offset_ms = clock_offset_ms
         bad = abs(clock_offset_ms) > self.s.exchange.max_clock_offset_ms
         if bad and self.status == AgentStatus.RUNNING:
             self._set_status(AgentStatus.PAUSED, "clock")
@@ -388,6 +390,53 @@ class AgentRunner:
 
     def report_text(self) -> str:
         return build_daily_report(self.report_data("Laporan (on-demand)"))
+
+    def go_live_readiness(self) -> tuple[bool, list[str]]:
+        """Checks the owner can verify from Telegram before switching to live (paper mode)."""
+        now = self.now()
+        days, need = self.db.paper_days_recorded(), self.s.live_gate.min_paper_days
+        errors = self.db.errors_between(now - timedelta(days=need), now)
+        off, max_off = self.last_clock_offset_ms, self.s.exchange.max_clock_offset_ms
+        checks = [
+            (days >= need, f"hari paper trading tercatat: {days}/{need}"),
+            (self.status == AgentStatus.RUNNING, f"status agent: {self.status.value}"),
+            (off is not None and abs(off) <= max_off,
+             f"selisih jam VPS: {off if off is not None else '—'} ms (maks {max_off})"),
+            (len(errors) < 10, f"error {need} hari terakhir: {len(errors)}"
+             + (f" (terbanyak: {esc(Counter(e['component'] for e in errors).most_common(1)[0][0])})"
+                if errors else "")),
+        ]
+        return all(ok for ok, _ in checks), [f"{'✅' if ok else '❌'} {text}" for ok, text in checks]
+
+    async def go_live_review(self) -> bool:
+        """From reporting.go_live_review_date at go_live_review_time (local), send /status plus the
+        readiness check once a day until everything is ready; then stop. Safe to call often.
+        Returns True when a message was sent."""
+        rs = self.s.reporting
+        if self.mode != "paper" or rs.go_live_review_date is None or self.db.get_state("golive_review:done"):
+            return False
+        local = self.now().astimezone(self.tz)
+        hh, mm = (int(x) for x in rs.go_live_review_time.split(":"))
+        if local.date() < rs.go_live_review_date or (local.hour, local.minute) < (hh, mm):
+            return False
+        today = local.date().isoformat()
+        if self.db.get_state("golive_review:last_sent") == today:
+            return False
+        if not getattr(self.notifier, "available", True):
+            return False   # Telegram offline: retried by the next job run
+        ready, lines = self.go_live_readiness()
+        head = ("📅 <b>Review go-live</b> — semua syarat otomatis terpenuhi ✅" if ready else
+                "📅 <b>Review go-live</b> — belum semua syarat terpenuhi; dicek lagi besok")
+        steps = ("\n\n<b>Langkah berikut</b>: kirim pesan ini + laporan harian terakhir ke developer, "
+                 "lalu lanjutkan docs/go_live_checklist.md bagian D–E (saldo IDR ≥ modal, key sudah "
+                 "di-rotate, tanpa order manual di pair whitelist). Jangan ubah MODE=live sebelum dicek bersama."
+                 if ready else "")
+        msg = f"{head}\n\n{self.status_text()}\n\n<b>Kesiapan</b>\n" + "\n".join(lines) + steps
+        self.db.set_state("golive_review:last_sent", today)
+        if ready:
+            self.db.set_state("golive_review:done", today)
+        await self.notifier.send(msg)
+        return True
 
     async def send_daily_report(self) -> None:
         await self.notifier.send(build_daily_report(self.report_data()))

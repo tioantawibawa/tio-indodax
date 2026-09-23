@@ -6,7 +6,10 @@ from tests.helpers import settings
 
 
 class Dummy:
+    mode = "paper"
+
     async def run_cycle(self): ...
+    async def go_live_review(self): ...
     async def check_clock_job(self, public): ...
     async def send_daily_report(self): ...
 
@@ -18,12 +21,19 @@ async def test_scheduler_jobs_are_active():
     sched.start()
     try:
         jobs = {j.id: j for j in sched.get_jobs()}
-        assert set(jobs) == {"cycle", "clock", "telegram", "daily_report"}
+        assert set(jobs) == {"cycle", "clock", "telegram", "daily_report", "go_live_review"}
         assert all(j.next_run_time is not None for j in jobs.values())   # none paused
         rep = jobs["daily_report"].trigger
         assert str(rep.timezone) == "Asia/Jakarta" and "hour='21'" in str(rep)
     finally:
         sched.shutdown(wait=False)
+
+
+def test_go_live_review_job_only_in_paper_mode():
+    live = Dummy()
+    live.mode = "live"
+    sched = build_scheduler(settings(), live, object())
+    assert "go_live_review" not in {j.id for j in sched.get_jobs()}
 
 
 class FakeApp:

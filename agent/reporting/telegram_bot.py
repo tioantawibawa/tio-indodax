@@ -141,6 +141,10 @@ class TelegramLink:
         link = self
 
         class _Notifier:
+            @property
+            def available(self) -> bool:   # False while Telegram is not connected
+                return link.connected
+
             async def send(self, text: str) -> None:
                 if link.connected:
                     await link._tg.send(text)
