@@ -7,7 +7,9 @@ Agent berjalan sebagai user Linux terpisah `indodax` di `/opt/indodax-agent`, le
 > Mode live **belum tersedia** (Fase 5). `MODE=live` akan ditolak saat start.
 
 ## 0. Prasyarat
-- Python 3.11+ (`python3.11 --version`), `rsync`, `git`.
+- Python 3.11+ (`python3 --version`; Ubuntu 24.04 = 3.12 ✓, Ubuntu 22.04 = 3.10 ✗ → pakai
+  `ppa:deadsnakes/ppa` untuk `python3.11`), paket venv (`sudo apt install python3-venv` atau
+  `python3.11-venv`), `rsync`, `git`. `install.sh` memilih Python ≥ 3.11 secara otomatis.
 - Sinkronisasi waktu aktif: `timedatectl` harus menampilkan `System clock synchronized: yes`.
   Jika belum: `sudo apt install chrony && sudo systemctl enable --now chrony`
   (agent menghentikan entry otomatis bila jam meleset > 500 ms dari server Indodax).
