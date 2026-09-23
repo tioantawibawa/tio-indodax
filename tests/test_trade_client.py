@@ -101,6 +101,26 @@ def test_parse_order_shapes(raw, filled, status):
     assert st.filled_qty == filled and st.status == status and st.pair == "btc_idr"
 
 
+def test_parse_real_buy_order_uses_receive_not_fee_inflated_rp():
+    # real getOrderByClientOrderId response (2026-09-23), resting buy
+    raw = {"order_id": "268678770", "client_order_id": "chk-09ab8fc3", "price": "1354500000", "type": "buy",
+           "submit_time": "1790173394", "finish_time": "0", "status": "open", "fee": 0,
+           "order_rp": "10534", "remain_rp": "10534", "receive_btc": 0}
+    st = parse_order(raw, "btc_idr")
+    assert st.is_open and st.filled_qty == 0 and st.side == "buy"
+    # filled: order_rp includes ~0.22% fee reserve -> received coin is authoritative
+    done = {**raw, "status": "filled", "remain_rp": "0", "receive_btc": "0.00000776"}
+    assert parse_order(done, "btc_idr").filled_qty == D("0.00000776")
+    part = {**raw, "remain_rp": "5000", "receive_btc": "0.000004"}
+    assert parse_order(part, "btc_idr").filled_qty == D("0.000004")
+
+
+def test_open_orders_entries_without_status_are_open():
+    raw = {"order_id": "1", "client_order_id": "x", "price": "100", "type": "buy", "order_idr": "1000",
+           "remain_idr": "1000"}
+    assert parse_order(raw, "btc_idr", default_status="open").is_open
+
+
 def test_parse_order_unknown_status_raises():
     from agent.exchange.errors import IndodaxResponseFormatError
     with pytest.raises(IndodaxResponseFormatError):

@@ -5,8 +5,8 @@ limit sells with a price floor (best bid − max slippage), which gives the
 same immediacy with a hard slippage bound.
 
 Response field names of legacy ``trade``/``getOrder*`` are only partially
-documented; parsing is defensive and was designed to be validated on
-https://demo-indodax.com before real use (see docs/go_live_checklist.md).
+documented; parsing is defensive and is validated on the real account with
+minimum-size orders (scripts/live_order_check.py, docs/go_live_checklist.md).
 """
 
 from __future__ import annotations
@@ -63,9 +63,12 @@ class OrderState:
     remaining_qty: Decimal
     status: str                  # normalised: open | filled | cancelled
     raw: dict
+    received_qty: Decimal | None = None  # buys: coin actually received (receive_<base>), authoritative
 
     @property
     def filled_qty(self) -> Decimal:
+        if self.received_qty is not None:
+            return self.received_qty
         return max(self.orig_qty - self.remaining_qty, ZERO)
 
     @property
@@ -83,7 +86,13 @@ def _num(d: dict, *keys: str) -> Decimal | None:
     return None
 
 
-def parse_order(raw: dict, pair: str) -> OrderState:
+def parse_order(raw: dict, pair: str, default_status: str | None = None) -> OrderState:
+    """Parse a legacy order. Verified on the real account (2026-09-23):
+    - buy orders are IDR-denominated; ``order_rp``/``remain_rp`` INCLUDE the fee reserve
+      (order 10510.92 IDR -> order_rp 10534), so qty derived from them is slightly too high;
+      the coin actually received is ``receive_<base>`` and is used for fills.
+    - ``openOrders`` entries carry no ``status`` field (pass ``default_status="open"``).
+    """
     base = base_asset(pair)
     price = _num(raw, "price") or ZERO
     orig = _num(raw, f"order_{base}")
@@ -96,7 +105,7 @@ def parse_order(raw: dict, pair: str) -> OrderState:
             remain = (remain_rp or ZERO) / price
     if orig is None:
         raise IndodaxResponseFormatError(f"order {raw.get('order_id')}: no quantity fields")
-    status_raw = str(raw.get("status", "")).lower()
+    status_raw = str(raw.get("status") or default_status or "").lower()
     if status_raw in ("filled", "done", "fill"):
         status = "filled"
     elif status_raw in ("cancelled", "canceled", "rejected", "expired"):
@@ -105,9 +114,12 @@ def parse_order(raw: dict, pair: str) -> OrderState:
         status = "open"
     else:
         raise IndodaxResponseFormatError(f"order {raw.get('order_id')}: unknown status {status_raw!r}")
+    side = str(raw.get("type", "")).lower()
+    received = _num(raw, f"receive_{base}") if side == "buy" else None
+    if received is not None and received == 0 and status == "filled":
+        received = None  # a filled buy reporting 0 received is not trustworthy -> use order/remain
     return OrderState(str(raw.get("order_id", "")), str(raw.get("client_order_id", "")), to_ticker_id(pair),
-                      str(raw.get("type", "")).lower(), price, orig, remain if remain is not None else ZERO,
-                      status, raw)
+                      side, price, orig, remain if remain is not None else ZERO, status, raw, received)
 
 
 class LiveTradeClient(PrivateReadOnlyClient):
@@ -164,7 +176,7 @@ class LiveTradeClient(PrivateReadOnlyClient):
 
     async def open_orders(self, pair: str) -> list[OrderState]:
         by_pair = await self.open_orders_legacy(pair)
-        return [parse_order(o, pair) for o in by_pair.get(to_ticker_id(pair), [])]
+        return [parse_order(o, pair, default_status="open") for o in by_pair.get(to_ticker_id(pair), [])]
 
     # ------------------------------------------------------------ deadman
 

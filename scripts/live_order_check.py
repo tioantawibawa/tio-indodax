@@ -4,6 +4,9 @@
     python -m scripts.live_order_check --production
     python -m scripts.live_order_check --production --fill
 
+    # cancel an order left open by an earlier run:
+    python -m scripts.live_order_check --production --cancel-order <ORDER_ID>
+
 Test A: limit buy 10% below the market (does not fill) -> read it back -> cancel -> read again.
 Test B (--fill): marketable buy of the minimum size, then sell the same amount back.
 Raw API responses (never credentials) are saved to logs/order_check_<time>.json.
@@ -59,6 +62,8 @@ async def main(argv=None) -> int:
     ap.add_argument("--pair", default="btc_idr")
     ap.add_argument("--fill", action="store_true", help="also run test B (real fill, tiny size)")
     ap.add_argument("--production", action="store_true", help="allow running on the real account")
+    ap.add_argument("--cancel-order", metavar="ORDER_ID",
+                    help="only cancel this (buy) order id on --pair, e.g. one left open by an earlier run")
     args = ap.parse_args(argv)
 
     sec = load_secrets(".env")
@@ -83,6 +88,16 @@ async def main(argv=None) -> int:
                          tapi_url=s.exchange.tapi_url, v2_base_url=s.exchange.tapi_v2_base_url,
                          recv_window_ms=s.exchange.recv_window_ms, clock=Clock(offset_ms=offset))
     ok = True
+    pending_a: str | None = None   # Test A order id until its cancel is confirmed
+    if args.cancel_order:
+        try:
+            await tc.cancel(args.pair, args.cancel_order, "buy")
+            opens = await tc.open_orders(args.pair)
+            still = [o.order_id for o in opens if o.order_id == args.cancel_order]
+            print(f"order {args.cancel_order}:", "STILL OPEN" if still else "not open any more (cancelled)")
+            return 1 if still else 0
+        finally:
+            await tc.aclose()
     try:
         rep = await tc.permission_report()
         rec("permission", {"legacy_ok": rep.legacy_ok, "withdraw_possible": rep.withdraw_possible, "notes": rep.notes})
@@ -104,6 +119,7 @@ async def main(argv=None) -> int:
         # ---- Test A: resting order, read back, cancel
         coid = f"chk-{pysecrets.token_hex(4)}"
         ack = await tc.place_limit(args.pair, "buy", price, qty, coid)
+        pending_a = ack.order_id
         rec("A.place (resting)", {"order_id": ack.order_id, "raw": ack.raw})
         st = await tc.get_order_by_coid(coid, args.pair)
         rec("A.read", {"status": st.status if st else None, "orig": st.orig_qty if st else None,
@@ -113,6 +129,7 @@ async def main(argv=None) -> int:
         rec("A.openOrders", [o.raw for o in opens if o.client_order_id == coid])
         ok &= any(o.client_order_id == coid for o in opens)
         await tc.cancel(args.pair, ack.order_id, "buy")
+        pending_a = None
         time.sleep(1)
         st = await tc.get_order_by_coid(coid, args.pair)
         rec("A.after cancel", {"status": st.status if st else None, "raw": st.raw if st else None})
@@ -151,6 +168,12 @@ async def main(argv=None) -> int:
         rec("ERROR", f"{type(e).__name__}: {e}")
         ok = False
     finally:
+        if pending_a:   # never leave the resting test order behind
+            try:
+                await tc.cancel(args.pair, pending_a, "buy")
+                rec("cleanup", f"test A order {pending_a} cancelled")
+            except Exception as e:  # noqa: BLE001
+                rec("cleanup FAILED", f"cancel order {pending_a} manually on indodax.com: {type(e).__name__}: {e}")
         await tc.aclose()
         Path("logs").mkdir(exist_ok=True)
         out = Path("logs") / f"order_check_{time.strftime('%Y%m%d_%H%M%S')}.json"

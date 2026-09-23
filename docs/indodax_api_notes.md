@@ -241,6 +241,18 @@ Status order: `NEW`, `PARTIALLY_FILLED`, `FILLED`, `CANCELLED`, `REJECTED`
 
 ---
 
+## 9b. Diverifikasi di akun asli (order minimum, 2026-09-23)
+
+- Minimum order dicek **di harga limit order itu sendiri**: `qty × price ≥ Rp 10.000`
+  (limit di 90% bid → "Minimum order is 0.00000735 BTC").
+- `trade` (buy, limit, tidak terisi) → `{"receive_btc":0,"spend_rp":0,"fee":0,"remain_rp":10534,
+  "order_id":268678770,"remain":10534,"client_order_id":"..."}`.
+- `getOrderByClientOrderId` (buy) → `order_id, client_order_id, price, type, submit_time, finish_time,
+  status ("open"), fee, order_rp, remain_rp, receive_btc`. Order buy berdenominasi IDR, dan
+  `order_rp` **termasuk cadangan fee** (nilai 10.510,92 → order_rp 10.534, ≈ +0,22%), jadi qty dari
+  `order_rp/price` sedikit kebesaran. Fill buy diambil dari `receive_btc`.
+- Entri `openOrders` **tidak punya field `status`** → dianggap open.
+
 ## 10. Pertanyaan / ambiguitas untuk Anda ❓
 
 1. **Legacy `/tapi` (SHA512) vs TAPIv2 (SHA256)?** Brief Anda menyebut HMAC-SHA512 (= legacy).
