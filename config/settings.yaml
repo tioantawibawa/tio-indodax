@@ -57,9 +57,30 @@ reporting:
   timezone: "Asia/Jakarta"
   daily_report_time: "21:00"
 
-llm:
-  model: "claude-sonnet-5"
-  timeout_s: 20
+strategy:                                         # tunable; NOT hard limits
+  timeframes: ["15", "60", "240"]                 # entry / signal / trend (Indodax has no 5m)
+  lookback_bars: 200
+  ema_fast: 20
+  ema_slow: 50
+  rsi_period: 14
+  atr_period: 14
+  adx_period: 14
+  adx_trend: 25
+  adx_range: 20
+  high_vol_atr_ratio: 2.0
+  sl_atr_mult: 2.0
+  tp_atr_mult: 3.0
+  mr_rsi_max: 32
+  mr_sl_atr_mult: 1.5
+  risk_per_trade_pct: 1.0
+  min_confidence: 0.55
+
+llm:                                              # enabled via LLM_ENABLED in .env
+  model: "claude-opus-5"
+  effort: "low"
+  timeout_s: 30
+  max_confidence_adjust: 0.2
+  veto_confidence: 0.7
 
 storage:
   db_path: "data/agent.db"

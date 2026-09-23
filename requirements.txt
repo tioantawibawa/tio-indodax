@@ -1,6 +1,10 @@
-# Runtime dependencies (Phase 1). More are added per phase.
+# Runtime dependencies. More are added per phase.
 httpx>=0.27,<1.0
 pydantic>=2.6,<3.0
 pydantic-settings>=2.2,<3.0
 PyYAML>=6.0
 structlog>=24.1
+pandas>=2.2
+numpy>=1.26
+# Optional LLM analyst (only used when LLM_ENABLED=true)
+anthropic>=1.8

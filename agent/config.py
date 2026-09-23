@@ -138,9 +138,45 @@ class ReportingSettings(_Frozen):
         return v
 
 
+class StrategySettings(_Frozen):
+    """Tunable strategy parameters. NOT hard limits: the risk manager caps
+    whatever the strategy proposes."""
+
+    timeframes: tuple[str, str, str] = ("15", "60", "240")  # entry, signal, trend
+    lookback_bars: int = Field(200, ge=60, le=1000)
+    ema_fast: int = Field(20, ge=2)
+    ema_slow: int = Field(50, ge=3)
+    rsi_period: int = Field(14, ge=2)
+    atr_period: int = Field(14, ge=2)
+    adx_period: int = Field(14, ge=2)
+    adx_trend: float = Field(25, gt=0)
+    adx_range: float = Field(20, gt=0)
+    high_vol_atr_ratio: float = Field(2.0, gt=1)   # ATR% vs its median -> HIGH_VOLATILITY
+    sl_atr_mult: float = Field(2.0, gt=0)
+    tp_atr_mult: float = Field(3.0, gt=0)
+    mr_rsi_max: float = Field(32, gt=0, lt=50)
+    mr_sl_atr_mult: float = Field(1.5, gt=0)
+    risk_per_trade_pct: float = Field(1.0, gt=0, le=5)  # of agent capital, lost if SL hits
+    min_confidence: float = Field(0.55, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def _ordering(self) -> "StrategySettings":
+        if self.ema_fast >= self.ema_slow:
+            raise ValueError("ema_fast must be < ema_slow")
+        if self.adx_range > self.adx_trend:
+            raise ValueError("adx_range must be <= adx_trend")
+        for tf in self.timeframes:
+            if tf not in ("1", "15", "30", "60", "240", "1D"):
+                raise ValueError(f"unsupported timeframe {tf}")
+        return self
+
+
 class LLMSettings(_Frozen):
-    model: str = "claude-sonnet-5"
-    timeout_s: float = Field(20, gt=0)
+    model: str = "claude-opus-5"
+    effort: str = Field("low", pattern="^(low|medium|high|xhigh|max)$")
+    timeout_s: float = Field(30, gt=0)
+    max_confidence_adjust: float = Field(0.2, ge=0, le=0.5)  # LLM can move confidence by at most this
+    veto_confidence: float = Field(0.7, gt=0, le=1)          # bearish with >= this confidence vetoes a buy
 
 
 class StorageSettings(_Frozen):
@@ -161,6 +197,7 @@ class Settings(_Frozen):
     deadman: DeadmanSettings = DeadmanSettings()
     live_gate: LiveGateSettings = LiveGateSettings()
     reporting: ReportingSettings = ReportingSettings()
+    strategy: StrategySettings = StrategySettings()
     llm: LLMSettings = LLMSettings()
     storage: StorageSettings = StorageSettings()
     logging: LoggingSettings = LoggingSettings()

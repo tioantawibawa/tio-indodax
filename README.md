@@ -4,8 +4,8 @@ Agent auto-trading kripto untuk Indodax: berjalan 24/7 di VPS, menganalisa pasar
 limit order secara mandiri **di dalam batas risiko keras (hard limits) yang di-enforce oleh kode**,
 dan mengirim laporan harian ke Telegram.
 
-> ⚠️ **Status: Fase 1 dari 5 selesai** (riset API + kerangka + klien public API).
-> Belum ada logika trading, belum ada pemanggilan endpoint private, belum ada order.
+> ⚠️ **Status: Fase 2 dari 5 selesai** (data, analisa, strategi, risk manager, jurnal DB).
+> Belum ada eksekusi order, belum ada pemanggilan endpoint private. Backtest = Fase 3.
 
 ## Risiko — baca dulu
 
@@ -36,6 +36,50 @@ data → analisa → strategy (TradeProposal) → risk_manager (APPROVE/RESIZE/V
 
 Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, ambiguitas):
 [`docs/indodax_api_notes.md`](docs/indodax_api_notes.md).
+
+## Alur keputusan per siklus (`agent/engine.py`)
+
+1. **Data** — ticker, orderbook, candle 15m/1h/4h (hanya candle yang sudah close; cache per timeframe).
+2. **Analisa** — EMA, RSI, MACD, ATR, Bollinger, ADX, rasio volume per timeframe → regime
+   `trending_up / trending_down / ranging / high_volatility / no_trade`.
+3. **Exit dulu** — posisi terbuka dicek: SL kena → *emergency market sell*; TP kena atau regime 1h
+   berbalik turun / volatil → limit sell.
+4. **Entry** — dua setup long-only (spot): *trend pullback* (4h tidak turun, 1h trending up, 15m RSI 40–65
+   + MACD histogram naik) dan *range reversion* (1h ranging, 15m di bawah Bollinger bawah + RSI < 32).
+   SL berbasis ATR, TP berbasis ATR / Bollinger tengah, ukuran = risiko 1% modal bila SL kena.
+5. **LLM (opsional)** — hanya bisa menggeser confidence maks ±0,2 atau menahan proposal *buy*
+   bila bearish ≥ 0,7. Tidak bisa membuat order, mengubah harga/qty/SL/TP, atau menyentuh limit.
+   Error/timeout → siklus lanjut tanpa LLM.
+6. **Risk manager** — APPROVE / RESIZE / VETO (detail di bawah).
+7. **Jurnal** — setiap keputusan, termasuk VETO dan veto LLM, disimpan di tabel `decisions` beserta alasannya.
+
+## Hard limits (`agent/risk/risk_manager.py`)
+
+| Limit | Perilaku |
+|---|---|
+| Modal agent (`agent_capital_idr`) | total posisi + order pending ≤ modal; belanja ≤ kas ledger agent dan ≤ saldo IDR bebas di exchange |
+| Maks per posisi 10% | proposal lebih besar di-RESIZE; posisi penuh → VETO (termasuk order pending) |
+| Maks posisi terbuka 3 | pair baru ditolak bila sudah 3 (order pending dihitung) |
+| Maks exposure per aset 30% | dijumlah lintas market (mis. `btc_idr` + `btc_usdt`) |
+| Daily loss 3% modal | entry baru di-VETO + flag `trigger_daily_stop` (untuk alert & PAUSE) |
+| Drawdown 15% dari puncak | entry di-VETO + flag `trigger_halt` (kill switch) |
+| Order 10/jam, 40/hari | VETO bila tercapai |
+| Hanya limit order | market order hanya untuk emergency stop-loss exit, dengan batas slippage 1% |
+| Stop-loss wajib | buy tanpa SL, atau SL ≥ harga entry → VETO; tidak bisa dimatikan lewat config |
+| Cooldown 30 menit setelah SL | per pair |
+| Rekonsiliasi gagal | semua order di-VETO sampai rekonsiliasi |
+| Biaya | expected move harus ≥ 2× biaya round-trip (fee maker+taker, pajak, kliring, spread, slippage) |
+| Likuiditas | spread ≤ 0,3%, volume 24 jam ≥ minimum, slippage untuk keluar dari posisi ≤ 0,2% |
+| Tanpa short | sell hanya sampai jumlah yang dipegang |
+
+Setiap limit punya test di `tests/test_risk_manager.py`, plus fuzz test 3000 input acak yang
+memverifikasi tidak ada order yang disetujui melanggar limit mana pun.
+
+**Keputusan desain yang perlu konfirmasi pemilik:**
+- *Emergency stop-loss exit dikecualikan* dari limit jumlah order per jam/hari dan tetap boleh jalan
+  saat PAUSED/HALTED — karena memblokir stop-loss justru menambah risiko.
+- Saat kill switch (HALTED): order terbuka dibatalkan (Fase 5), posisi **tetap dipegang** dengan SL-nya
+  (emergency SL masih boleh). Alternatif: likuidasi semua posisi saat kill switch.
 
 ## Konfigurasi
 
