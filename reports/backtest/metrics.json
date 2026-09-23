@@ -1,0 +1,54 @@
+{
+ "period_days": 180.0,
+ "initial_equity_idr": 1000000.0,
+ "final_equity_idr": 890868.7945956144,
+ "net_pnl_idr": -109131.2054043856,
+ "total_return_pct": -10.913,
+ "annualized_return_pct": -20.89,
+ "max_drawdown_pct": 11.661,
+ "sharpe_daily_annualized": -6.323,
+ "trades_closed": 141,
+ "trades_open_at_end": 2,
+ "win_rate_pct": 33.3,
+ "avg_win_idr": 1338.6364899479015,
+ "avg_loss_idr": -1843.9488294309633,
+ "profit_factor": 0.363,
+ "total_fees_idr": 82787.34101594561,
+ "pnl_before_fees_idr": -26343.864388439986,
+ "spread_slippage_cost_idr": 8994.50294045,
+ "exit_reasons": {
+  "stop_loss": 82,
+  "take_profit": 46,
+  "regime_exit": 13,
+  "open at end": 2
+ },
+ "setups": {
+  "trend_pullback": 99,
+  "range_reversion": 44
+ },
+ "buy_and_hold_pct": {
+  "btc_idr": 32.21,
+  "eth_idr": 40.29,
+  "sol_idr": 44.09
+ },
+ "verdicts": {
+  "RESIZE": 202,
+  "VETO": 617,
+  "APPROVE": 17
+ },
+ "top_veto_reasons": [
+  [
+   "expected move # < #x round-trip cost #",
+   584
+  ],
+  [
+   "cooldown after stop-loss on <pair> until #",
+   27
+  ],
+  [
+   "orderbook too thin to exit this size",
+   6
+  ]
+ ],
+ "events": []
+}

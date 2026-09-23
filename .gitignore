@@ -26,3 +26,5 @@ venv/
 htmlcov/
 dist/
 build/
+# large per-step equity curves stay local
+reports/**/equity.csv
