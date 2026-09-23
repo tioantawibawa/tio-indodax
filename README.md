@@ -4,8 +4,8 @@ Agent auto-trading kripto untuk Indodax: berjalan 24/7 di VPS, menganalisa pasar
 limit order secara mandiri **di dalam batas risiko keras (hard limits) yang di-enforce oleh kode**,
 dan mengirim laporan harian ke Telegram.
 
-> ⚠️ **Status: Fase 2 dari 5 selesai** (data, analisa, strategi, risk manager, jurnal DB).
-> Belum ada eksekusi order, belum ada pemanggilan endpoint private. Backtest = Fase 3.
+> ⚠️ **Status: Fase 3 sedang berjalan** — backtester siap, menunggu data historis Indodax.
+> Belum ada eksekusi order, belum ada pemanggilan endpoint private.
 
 ## Risiko — baca dulu
 
@@ -75,11 +75,25 @@ Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, 
 Setiap limit punya test di `tests/test_risk_manager.py`, plus fuzz test 3000 input acak yang
 memverifikasi tidak ada order yang disetujui melanggar limit mana pun.
 
-**Keputusan desain yang perlu konfirmasi pemilik:**
+**Keputusan desain (dikonfirmasi pemilik):**
 - *Emergency stop-loss exit dikecualikan* dari limit jumlah order per jam/hari dan tetap boleh jalan
   saat PAUSED/HALTED — karena memblokir stop-loss justru menambah risiko.
 - Saat kill switch (HALTED): order terbuka dibatalkan (Fase 5), posisi **tetap dipegang** dengan SL-nya
-  (emergency SL masih boleh). Alternatif: likuidasi semua posisi saat kill switch.
+  (emergency SL tetap aktif). Tidak ada likuidasi otomatis.
+
+## Backtest
+
+```bash
+.venv/bin/python -m scripts.download_history --months 6        # data/history/*.csv + pairs.json
+.venv/bin/python -m scripts.run_backtest --data data/history --out reports/backtest
+```
+
+Backtester (`agent/backtest/backtester.py`) memakai **kode keputusan yang sama persis** dengan live
+(strategy, risk manager, portfolio, engine); hanya data pasar dan fill yang disimulasikan:
+limit buy hanya terisi bila harga menembus limit, stop-loss dicek intrabar dan saat gap terisi di
+harga open dikurangi slippage, bila SL dan TP tersentuh di candle yang sama diasumsikan SL duluan.
+Orderbook historis tidak tersedia, jadi spread (default 0,1%) dan slippage (default 0,1%) adalah asumsi
+yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`, `equity.csv`, `metrics.json`.
 
 ## Konfigurasi
 

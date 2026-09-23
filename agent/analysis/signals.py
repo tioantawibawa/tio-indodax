@@ -14,7 +14,7 @@ import pandas as pd
 from agent.config import StrategySettings
 
 from . import indicators as ind
-from .regime import Regime, classify_regime
+from .regime import Regime, describe, min_bars, regime_frame
 
 
 @dataclass(frozen=True)
@@ -39,49 +39,63 @@ class TimeframeFeatures:
     regime_reason: str
 
 
-def _last(s: pd.Series, back: int = 1) -> float:
-    if len(s) < back:
-        return math.nan
-    v = s.iloc[-back]
-    return float(v) if pd.notna(v) else math.nan
-
-
-def compute_features(df: pd.DataFrame, timeframe: str, p: StrategySettings) -> TimeframeFeatures:
-    regime, reason = classify_regime(
+def feature_frame(df: pd.DataFrame, p: StrategySettings) -> pd.DataFrame:
+    """All TimeframeFeatures fields for every bar (vectorised, causal: row i
+    only depends on rows <= i). Used by the backtester; the live path takes
+    the last row via :func:`compute_features`."""
+    close = df["close"]
+    reg = regime_frame(
         df, ema_fast=p.ema_fast, ema_slow=p.ema_slow, adx_period=p.adx_period,
         atr_period=p.atr_period, adx_trend=p.adx_trend, adx_range=p.adx_range,
         high_vol_atr_ratio=p.high_vol_atr_ratio,
     )
-    if len(df) < 2:
-        nan = math.nan
-        return TimeframeFeatures(timeframe, len(df), nan, nan, nan, nan, nan, nan, nan, nan,
-                                 nan, nan, nan, nan, nan, nan, regime, reason)
-    close = df["close"]
     m = ind.macd(close)
     bb = ind.bollinger(close)
     atr_s = ind.atr(df, p.atr_period)
-    last_close = float(close.iloc[-1])
-    atr_v = _last(atr_s)
-    return TimeframeFeatures(
-        timeframe=timeframe,
-        bars=len(df),
-        close=last_close,
-        ema_fast=_last(ind.ema(close, p.ema_fast)),
-        ema_slow=_last(ind.ema(close, p.ema_slow)),
-        rsi=_last(ind.rsi(close, p.rsi_period)),
-        macd_hist=_last(m["hist"]),
-        macd_hist_prev=_last(m["hist"], 2),
-        atr=atr_v,
-        atr_pct=atr_v / last_close * 100 if last_close else math.nan,
-        bb_mid=_last(bb["mid"]),
-        bb_upper=_last(bb["upper"]),
-        bb_lower=_last(bb["lower"]),
-        bb_pctb=_last(bb["pctb"]),
-        adx=_last(ind.adx(df, p.adx_period)),
-        volume_ratio=_last(ind.volume_ratio(df["volume"])),
-        regime=regime,
-        regime_reason=reason,
-    )
+    return pd.DataFrame({
+        "close": close,
+        "ema_fast": reg["ema_fast"],
+        "ema_slow": reg["ema_slow"],
+        "rsi": ind.rsi(close, p.rsi_period),
+        "macd_hist": m["hist"],
+        "macd_hist_prev": m["hist"].shift(1),
+        "atr": atr_s,
+        "atr_pct": atr_s / close * 100,
+        "bb_mid": bb["mid"],
+        "bb_upper": bb["upper"],
+        "bb_lower": bb["lower"],
+        "bb_pctb": bb["pctb"],
+        "adx": reg["adx"],
+        "volume_ratio": ind.volume_ratio(df["volume"]),
+        "regime": reg["regime"],
+        "regime_code": reg["regime_code"],
+        "atr_pct_median": reg["atr_pct_median"],
+        "bars": reg["bars"],
+    }, index=df.index)
+
+
+_NUMERIC = ("close", "ema_fast", "ema_slow", "rsi", "macd_hist", "macd_hist_prev", "atr", "atr_pct",
+            "bb_mid", "bb_upper", "bb_lower", "bb_pctb", "adx", "volume_ratio")
+
+
+def row_to_features(row: pd.Series, timeframe: str, p: StrategySettings,
+                    with_reason: bool = True) -> TimeframeFeatures:
+    vals = {k: (float(row[k]) if pd.notna(row[k]) else math.nan) for k in _NUMERIC}
+    reason = ""
+    if with_reason:
+        reason = describe(row, ema_fast=p.ema_fast, ema_slow=p.ema_slow, adx_range=p.adx_range,
+                          high_vol_atr_ratio=p.high_vol_atr_ratio,
+                          needed=min_bars(p.ema_slow, p.adx_period, p.atr_period))
+    return TimeframeFeatures(timeframe=timeframe, bars=int(row["bars"]), regime=row["regime"],
+                             regime_reason=reason, **vals)
+
+
+def compute_features(df: pd.DataFrame, timeframe: str, p: StrategySettings) -> TimeframeFeatures:
+    if len(df) == 0:
+        nan = math.nan
+        return TimeframeFeatures(timeframe, 0, nan, nan, nan, nan, nan, nan, nan, nan,
+                                 nan, nan, nan, nan, nan, nan, Regime.NO_TRADE, "no data")
+    return row_to_features(feature_frame(df, p).iloc[-1], timeframe, p)
 
 
 @dataclass(frozen=True)
