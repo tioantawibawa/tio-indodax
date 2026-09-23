@@ -1,0 +1,69 @@
+# Non-secret configuration. Secrets live in .env (see .env.example).
+# Every value under `risk:` is a HARD LIMIT: loaded once at startup into an
+# immutable object; nothing in the agent (incl. the LLM) can change it at runtime.
+# To change a hard limit: edit this file and restart the service.
+
+exchange:
+  public_base_url: "https://indodax.com"
+  tapi_url: "https://indodax.com/tapi"            # legacy private API (HMAC-SHA512)
+  tapi_v2_base_url: "https://api.indodax.com"     # Trade API 2.0 (HMAC-SHA256) — see notes §10 Q2
+  public_rate_limit_per_min: 150                  # official limit is 180/min; keep headroom
+  request_timeout_s: 10
+  max_retries: 4
+  backoff_base_s: 0.5
+  backoff_max_s: 8
+  recv_window_ms: 5000
+  max_clock_offset_ms: 500                        # refuse to trade if VPS clock drifts more than this
+
+market:
+  whitelist: ["btc_idr", "eth_idr", "sol_idr"]
+  min_volume_24h_idr: 1000000000                  # Rp 1 miliar — placeholder, please confirm
+  max_spread_pct: 0.3
+  max_slippage_pct: 0.2
+
+cycle:
+  interval_minutes: 5
+
+fees:
+  # Fallbacks; per-pair maker/taker fees from /api/pairs take precedence when present.
+  maker_pct: 0.1
+  taker_pct: 0.2
+  tax_pct: 0.12                                   # seen as taxRate 0.0012 in private WS fills
+  clearing_pct: 0.0222                            # seen as clearingRate 0.000222
+  min_edge_multiple: 2.0                          # expected move must be >= 2x round-trip cost
+
+risk:
+  agent_capital_idr: 1000000                      # placeholder Rp 1.000.000 — please confirm
+  max_position_pct: 10
+  max_open_positions: 3
+  max_asset_exposure_pct: 30
+  daily_loss_limit_pct: 3
+  max_drawdown_pct: 15
+  max_orders_per_hour: 10
+  max_orders_per_day: 40
+  stoploss_cooldown_minutes: 30
+  require_stop_loss: true
+  emergency_exit_max_slippage_pct: 1.0            # market orders only for emergency SL exits
+
+deadman:
+  enabled: true
+  heartbeat_s: 30
+  countdown_ms: 120000
+
+live_gate:
+  min_paper_days: 14
+
+reporting:
+  timezone: "Asia/Jakarta"
+  daily_report_time: "21:00"
+
+llm:
+  model: "claude-sonnet-5"
+  timeout_s: 20
+
+storage:
+  db_path: "data/agent.db"
+
+logging:
+  dir: "logs"
+  level: "INFO"

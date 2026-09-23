@@ -1,0 +1,1 @@
+"""Indodax autonomous trading agent."""
