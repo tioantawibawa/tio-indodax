@@ -33,6 +33,27 @@ def ceil_step(x: Decimal, step: Decimal) -> Decimal:
     return (x / step).to_integral_value(rounding=ROUND_CEILING) * step
 
 
+def min_qty_at(info, price: Decimal, margin: Decimal = Decimal("1.05")) -> Decimal:
+    """Smallest qty that meets the exchange minimum AT THIS LIMIT PRICE (+margin).
+
+    Indodax checks qty x order price >= min_quote (verified: a limit at 90% of bid
+    needs ~11% more coin than one at the ask), so size from the order's own price.
+    """
+    need = max(info.min_base or Decimal(0), (info.min_quote or Decimal(0)) * margin / price)
+    return ceil_step(need, info.qty_step or Decimal("0.00000001"))
+
+
+def plan_orders(info, bid: Decimal, ask: Decimal) -> dict:
+    """Prices and sizes for test A (resting buy) and test B (buy then sell back)."""
+    a_price = info.round_price(bid * Decimal("0.90"), "buy")
+    b_buy = info.round_price(ask * Decimal("1.002"), "sell")
+    b_sell = info.round_price(bid * Decimal("0.998"), "buy")
+    # the sell leg must still meet the minimum after fees/rounding -> 15% margin at the sell price
+    b_qty = max(min_qty_at(info, b_buy), min_qty_at(info, b_sell, Decimal("1.15")))
+    return {"a_price": a_price, "a_qty": min_qty_at(info, a_price), "b_buy_price": b_buy,
+            "b_sell_price": b_sell, "b_qty": b_qty}
+
+
 async def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pair", default="btc_idr")
@@ -69,15 +90,18 @@ async def main(argv=None) -> int:
             print("ABORT: key must be proven WITHOUT withdraw permission.")
             return 3
         bid, ask = book.best_bid, book.best_ask
-        qty = ceil_step(max(info.min_base or Decimal(0), (info.min_quote or Decimal(0)) * Decimal("1.05") / ask),
-                        info.qty_step or Decimal("0.00000001"))
-        if qty * ask > HARD_CAP_IDR:
-            print(f"ABORT: minimum order {qty * ask:,.0f} IDR exceeds hard cap {HARD_CAP_IDR:,.0f}")
+        plan = plan_orders(info, bid, ask)
+        price, qty = plan["a_price"], plan["a_qty"]
+        biggest = max(price * qty, plan["b_buy_price"] * plan["b_qty"])
+        if biggest > HARD_CAP_IDR:
+            print(f"ABORT: minimum order {biggest:,.0f} IDR exceeds hard cap {HARD_CAP_IDR:,.0f}")
             return 3
-        rec("market", {"bid": bid, "ask": ask, "qty": qty, "notional_at_ask": qty * ask, "clock_offset_ms": offset})
+        rec("market", {"bid": bid, "ask": ask, "min_quote": info.min_quote, "min_base": info.min_base,
+                       "A_price": price, "A_qty": qty, "A_notional": price * qty,
+                       "B_qty": plan["b_qty"], "B_buy_notional": plan["b_buy_price"] * plan["b_qty"],
+                       "clock_offset_ms": offset})
 
         # ---- Test A: resting order, read back, cancel
-        price = info.round_price(bid * Decimal("0.90"), "buy")
         coid = f"chk-{pysecrets.token_hex(4)}"
         ack = await tc.place_limit(args.pair, "buy", price, qty, coid)
         rec("A.place (resting)", {"order_id": ack.order_id, "raw": ack.raw})
@@ -97,7 +121,7 @@ async def main(argv=None) -> int:
         if args.fill:
             # ---- Test B: marketable buy then sell back
             coid_b = f"chk-{pysecrets.token_hex(4)}"
-            ackb = await tc.place_limit(args.pair, "buy", info.round_price(ask * Decimal("1.002"), "sell"), qty, coid_b)
+            ackb = await tc.place_limit(args.pair, "buy", plan["b_buy_price"], plan["b_qty"], coid_b)
             rec("B.buy", {"filled_qty": ackb.filled_qty, "filled_quote": ackb.filled_quote, "fee": ackb.fee_idr,
                           "raw": ackb.raw})
             time.sleep(1)
@@ -109,10 +133,13 @@ async def main(argv=None) -> int:
             base = args.pair.split("_")[0]
             sell_qty = info.round_qty(min(got, bal.free_of(base)))
             rec("B.balance before sell", {base: bal.free_of(base), "idr": bal.free_of("idr"), "sell_qty": sell_qty})
-            if sell_qty > 0:
+            if sell_qty > 0 and info.min_order_violation(plan["b_sell_price"], sell_qty):
+                rec("B.sell skipped", {"reason": info.min_order_violation(plan["b_sell_price"], sell_qty),
+                                       "note": "coin stays in the account; sell it manually on indodax.com"})
+                ok = False
+            elif sell_qty > 0:
                 coid_s = f"chk-{pysecrets.token_hex(4)}"
-                acks = await tc.place_limit(args.pair, "sell", info.round_price(bid * Decimal("0.998"), "buy"),
-                                            sell_qty, coid_s)
+                acks = await tc.place_limit(args.pair, "sell", plan["b_sell_price"], sell_qty, coid_s)
                 rec("B.sell", {"filled_qty": acks.filled_qty, "filled_quote": acks.filled_quote,
                                "fee": acks.fee_idr, "raw": acks.raw})
                 time.sleep(1)
