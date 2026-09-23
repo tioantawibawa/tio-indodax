@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 from agent.config import load_settings
+from agent.data.market_data import closed_only
 from agent.exchange.public_client import IndodaxPublicClient
 
 WARMUP_DAYS = 30
@@ -64,6 +65,7 @@ async def main(argv: list[str] | None = None) -> int:
                 prev = last_ts(path)
                 frm = prev + 1 if prev else start
                 candles = await c.ohlc(pair, tf, frm, now)
+                candles = closed_only(candles, tf, now)  # never store a still-forming candle
                 new = path.exists()
                 with path.open("a", newline="") as f:
                     w = csv.writer(f)

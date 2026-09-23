@@ -37,6 +37,9 @@ class TimeframeFeatures:
     volume_ratio: float
     regime: Regime
     regime_reason: str
+    donchian_high: float = math.nan    # highest high of the N bars BEFORE this one
+    ema_trend: float = math.nan
+    chandelier_stop: float = math.nan  # highest high(M, incl. this bar) - k x ATR
 
 
 def feature_frame(df: pd.DataFrame, p: StrategySettings) -> pd.DataFrame:
@@ -67,6 +70,10 @@ def feature_frame(df: pd.DataFrame, p: StrategySettings) -> pd.DataFrame:
         "bb_pctb": bb["pctb"],
         "adx": reg["adx"],
         "volume_ratio": ind.volume_ratio(df["volume"]),
+        "donchian_high": df["high"].shift(1).rolling(p.breakout_bars, min_periods=p.breakout_bars).max(),
+        "ema_trend": ind.ema(close, p.trend_ema),
+        "chandelier_stop": df["high"].rolling(p.chandelier_bars, min_periods=p.chandelier_bars).max()
+                           - p.chandelier_atr_mult * atr_s,
         "regime": reg["regime"],
         "regime_code": reg["regime_code"],
         "atr_pct_median": reg["atr_pct_median"],
@@ -75,7 +82,8 @@ def feature_frame(df: pd.DataFrame, p: StrategySettings) -> pd.DataFrame:
 
 
 _NUMERIC = ("close", "ema_fast", "ema_slow", "rsi", "macd_hist", "macd_hist_prev", "atr", "atr_pct",
-            "bb_mid", "bb_upper", "bb_lower", "bb_pctb", "adx", "volume_ratio")
+            "bb_mid", "bb_upper", "bb_lower", "bb_pctb", "adx", "volume_ratio", "donchian_high",
+            "ema_trend", "chandelier_stop")
 
 
 def row_to_features(row: pd.Series, timeframe: str, p: StrategySettings,
@@ -92,9 +100,8 @@ def row_to_features(row: pd.Series, timeframe: str, p: StrategySettings,
 
 def compute_features(df: pd.DataFrame, timeframe: str, p: StrategySettings) -> TimeframeFeatures:
     if len(df) == 0:
-        nan = math.nan
-        return TimeframeFeatures(timeframe, 0, nan, nan, nan, nan, nan, nan, nan, nan,
-                                 nan, nan, nan, nan, nan, nan, Regime.NO_TRADE, "no data")
+        return TimeframeFeatures(timeframe=timeframe, bars=0, regime=Regime.NO_TRADE, regime_reason="no data",
+                                 **{k: math.nan for k in _NUMERIC})
     return row_to_features(feature_frame(df, p).iloc[-1], timeframe, p)
 
 
@@ -119,7 +126,7 @@ class MarketSummary:
         for tf, f in self.features.items():
             d = {k: rnd(v) for k, v in asdict(f).items() if k not in ("timeframe",)}
             d["regime"] = f.regime.value
-            tfs[{"15": "15m", "60": "1h", "240": "4h"}.get(tf, tf)] = d
+            tfs[{"15": "15m", "60": "1h", "240": "4h", "1D": "1d"}.get(tf, tf)] = d
         return {
             "pair": self.pair,
             "last_price_idr": rnd(self.last),

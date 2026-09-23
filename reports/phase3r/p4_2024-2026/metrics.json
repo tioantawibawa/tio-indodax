@@ -1,0 +1,37 @@
+{
+ "period_days": 995.0,
+ "initial_equity_idr": 1000000.0,
+ "final_equity_idr": 1049389.6278794005,
+ "net_pnl_idr": 49389.6278794005,
+ "total_return_pct": 4.939,
+ "annualized_return_pct": 1.78,
+ "max_drawdown_pct": 8.508,
+ "sharpe_daily_annualized": 0.325,
+ "trades_closed": 53,
+ "trades_open_at_end": 3,
+ "win_rate_pct": 39.6,
+ "avg_win_idr": 11368.61991436832,
+ "avg_loss_idr": -6095.952672982516,
+ "profit_factor": 1.224,
+ "total_fees_idr": 33021.783572449516,
+ "pnl_before_fees_idr": 82411.41145185001,
+ "spread_slippage_cost_idr": 7242.94799225,
+ "exit_reasons": {
+  "stop_loss": 53,
+  "open at end": 3
+ },
+ "setups": {
+  "trend_breakout": 56
+ },
+ "buy_and_hold_pct": {
+  "btc_idr": 124.73,
+  "eth_idr": 34.88,
+  "sol_idr": 24.48
+ },
+ "verdicts": {
+  "RESIZE": 25,
+  "APPROVE": 31
+ },
+ "top_veto_reasons": [],
+ "events": []
+}

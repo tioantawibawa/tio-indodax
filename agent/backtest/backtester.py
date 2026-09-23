@@ -10,8 +10,11 @@ Simulation model (conservative where a choice exists):
   -/+ half of an assumed spread; depth per level is a fraction of the bar's
   volume; 24h IDR volume = rolling sum of volume x close (assumes candle
   ``Volume`` is in the base asset — see docs/indodax_api_notes.md).
-- Entry: limit buy at the bid, valid for the next candle only, filled only if
-  price trades *through* it (low < limit). Maker fee.
+- Entry: a marketable limit buy (limit >= best ask) fills immediately at the
+  ask with the taker fee — as it would live. A passive limit (below the ask)
+  is valid for the next candle only and fills only if price trades *through*
+  it (low < limit), with the maker fee.
+- Pairs join the timeline when their data starts (e.g. SOL from 2021-11).
 - Stop-loss: checked intrabar; fill at min(open, SL) minus slippage, taker
   fee. If SL and TP are both touched in one candle, SL is assumed first.
 - Take-profit: intrabar, fill at TP, taker fee.
@@ -150,6 +153,12 @@ class Backtester:
         self.tz = ZoneInfo(settings.reporting.timezone)
         self.start, self.end = start, end
 
+        # Never use a candle that had not closed yet when the data was downloaded.
+        now_s = int(datetime.now(timezone.utc).timestamp())
+        data = {p: {tf: df[df.index.as_unit("s").asi8 + TIMEFRAMES[tf] <= now_s] for tf, df in d.items()}
+                for p, d in data.items()}
+        self.data = data
+
         # Precompute features and close times per (pair, tf).
         self.frames: dict[tuple[str, str], pd.DataFrame] = {}
         self.close_times: dict[tuple[str, str], np.ndarray] = {}
@@ -205,17 +214,22 @@ class Backtester:
         base_idx = None
         for p in self.pairs:
             idx = self.data[p][self.entry_tf].index
-            base_idx = idx if base_idx is None else base_idx.intersection(idx)
+            base_idx = idx if base_idx is None else base_idx.union(idx)
         dur = TIMEFRAMES[self.entry_tf]
-        # warm-up: skip bars until every pair's slowest TF has enough history for a regime
-        warm_close = 0
-        need_bars = min_bars(self.s.strategy.ema_slow, self.s.strategy.adx_period, self.s.strategy.atr_period)
+        # warm-up: start once the first pair has enough history on its slowest TF
+        st = self.s.strategy
+        need_bars = max(min_bars(st.ema_slow, st.adx_period, st.atr_period),
+                        st.trend_ema, st.breakout_bars, st.chandelier_bars) + 10
+        warm_close = None
         for p in self.pairs:
             bars_col = self.frames[(p, self.tfs[-1])]["bars"]
             ok = bars_col[bars_col >= need_bars]
             if ok.empty:
-                raise ValueError(f"{p}: not enough {self.tfs[-1]} candles for warm-up ({need_bars} needed)")
-            warm_close = max(warm_close, int(ok.index[0].timestamp()) + TIMEFRAMES[self.tfs[-1]])
+                continue
+            c = int(ok.index[0].timestamp()) + TIMEFRAMES[self.tfs[-1]]
+            warm_close = c if warm_close is None else min(warm_close, c)
+        if warm_close is None:
+            raise ValueError(f"not enough {self.tfs[-1]} candles for warm-up ({need_bars} needed)")
         steps = [ts for ts in base_idx if int(ts.timestamp()) + dur >= warm_close]
         if self.start is not None:
             steps = [ts for ts in steps if ts >= self.start]
@@ -268,7 +282,8 @@ class Backtester:
             t_open = int(ts.timestamp())
             t_close = t_open + dur
             now = datetime.fromtimestamp(t_close, tz=timezone.utc)
-            bars = {p: self.data[p][self.entry_tf].loc[ts] for p in self.pairs}
+            bars = {p: self.data[p][self.entry_tf].loc[ts] for p in self.pairs
+                    if ts in self.data[p][self.entry_tf].index}
 
             # 1) resolve buy orders placed at the previous close against this candle
             for o in pending:
@@ -283,6 +298,8 @@ class Backtester:
 
             # 2) intrabar stop-loss / take-profit
             for pair, pos in list(pf.positions.items()):
+                if pair not in bars:
+                    continue
                 bar = bars[pair]
                 lo, hi, op = _d(bar["low"]), _d(bar["high"]), _d(bar["open"])
                 if pos.stop_loss is not None and lo <= pos.stop_loss:
@@ -305,7 +322,7 @@ class Backtester:
             # 4) run the real decision pipeline at candle close
             markets = {}
             feats = {}
-            for p in self.pairs:
+            for p in bars:
                 f = self._features_at(p, t_close)
                 if f is None:
                     continue
@@ -325,7 +342,13 @@ class Backtester:
                     continue
                 p = d.proposal
                 m = markets[p.pair]
-                if p.side == "buy":
+                if p.side == "buy" and d.price >= m.orderbook.best_ask:
+                    # marketable limit: fills now at the ask (taker)
+                    px = m.orderbook.best_ask
+                    spread_slip += (px - m.ticker.last) * d.qty
+                    fill(p.pair, "buy", d.qty, px, self._fee(p.pair, d.qty * px, False), now, p.reason,
+                         sl=p.stop_loss, tp=p.take_profit, setup=p.setup, decision_id=row_id)
+                elif p.side == "buy":
                     coid = new_order(p.pair, "buy", "limit", d.price, d.qty, now, row_id, False, "NEW")
                     pending.append(dict(pair=p.pair, price=d.price, qty=d.qty, sl=p.stop_loss, tp=p.take_profit,
                                         reason=p.reason, setup=p.setup, coid=coid))
@@ -361,7 +384,9 @@ class Backtester:
         bh = {}
         for p in self.pairs:
             c = self.data[p][self.entry_tf]["close"]
-            bh[p] = float((c.loc[last] / c.loc[first] - 1) * 100)
+            c = c[(c.index >= first) & (c.index <= last)]
+            if len(c) > 1:
+                bh[p] = float((c.iloc[-1] / c.iloc[0] - 1) * 100)
         result = BacktestResult(
             start=datetime.fromtimestamp(int(first.timestamp()) + dur, tz=timezone.utc),
             end=datetime.fromtimestamp(int(last.timestamp()) + dur, tz=timezone.utc),

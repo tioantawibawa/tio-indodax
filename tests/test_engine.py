@@ -18,7 +18,7 @@ PAIRS = ["btc_idr", "eth_idr", "sol_idr", "xrp_idr", "btc_usdt"]
 
 def market(pair):
     return PairMarket(pair=pair, info=pair_info(pair), ticker=ticker(pair), orderbook=book(pair),
-                      candles={"15": pd.DataFrame(), "60": pd.DataFrame(), "240": pd.DataFrame()},
+                      candles={"1D": pd.DataFrame()},
                       fetched_at=NOW.timestamp())
 
 
@@ -27,7 +27,7 @@ def env(tmp_path):
     s = settings()
     db = Database(tmp_path / "e.db")
     eng = DecisionEngine(s, db, "paper")
-    signals = {p: {"15": feat("15"), "60": feat("60"), "240": feat("240")} for p in PAIRS}
+    signals = {p: {"1D": feat()} for p in PAIRS}
     eng.features = lambda m: signals[m.pair]  # controlled indicator output
     yield eng, db, signals
     db.close()
@@ -71,9 +71,21 @@ async def test_drawdown_triggers_halt_flag(env):
 async def test_no_signal_notes(env):
     eng, _, signals = env
     for p in PAIRS:
-        signals[p]["240"] = feat("240", Regime.TRENDING_DOWN)
+        signals[p]["1D"] = feat(regime=Regime.TRENDING_DOWN, donchian_high=1.1e9)
     res = await eng.run_cycle({p: market(p) for p in PAIRS}, Portfolio(D(1_000_000)), NOW, AgentStatus.RUNNING)
-    assert res.decisions == [] and all("trend TF" in n for n in res.notes.values())
+    assert res.decisions == [] and all("no breakout" in n for n in res.notes.values())
+
+
+async def test_engine_trails_stop_upward_only(env):
+    eng, _, signals = env
+    pf = Portfolio(D(1_000_000))
+    pf.apply_fill("btc_idr", "buy", D("0.0001"), D("950000000"), D(0), NOW, D("900000000"))
+    signals["btc_idr"]["1D"] = feat(chandelier_stop=0.96e9)
+    await eng.run_cycle({"btc_idr": market("btc_idr")}, pf, NOW, AgentStatus.RUNNING)
+    assert pf.positions["btc_idr"].stop_loss == D("960000000")
+    signals["btc_idr"]["1D"] = feat(chandelier_stop=0.92e9)          # lower -> ignored
+    await eng.run_cycle({"btc_idr": market("btc_idr")}, pf, NOW, AgentStatus.RUNNING)
+    assert pf.positions["btc_idr"].stop_loss == D("960000000")
 
 
 async def test_llm_veto_is_journaled_and_llm_failure_is_harmless(env):

@@ -64,7 +64,7 @@ def write_report(r: BacktestResult, out_dir: str | Path, title: str = "Backtest"
         f"| **PnL bersih** | {_idr(m['net_pnl_idr'])} |",
         f"| Estimasi biaya spread+slippage saat exit | {_idr(m['spread_slippage_cost_idr'])} |",
         "",
-        "**Buy & hold periode yang sama:** " + ", ".join(f"{k} {v:+.2f}%" for k, v in m["buy_and_hold_pct"].items()),
+        "**Buy & hold (dari data pertama pair dalam periode):** " + ", ".join(f"{k} {v:+.2f}%" for k, v in m["buy_and_hold_pct"].items()),
         "",
         f"**Alasan exit:** {m['exit_reasons']}  ",
         f"**Setup:** {m['setups']}  ",

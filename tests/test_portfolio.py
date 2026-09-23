@@ -50,3 +50,11 @@ def test_equity_unrealized_exposure():
     assert p.equity(prices) == D(850_000) + D(110_000) + D(50_000)
     assert p.unrealized_pnl(prices) == D(10_000)
     assert p.exposure_by_asset(prices) == {"btc": D(160_000)}
+
+
+def test_stop_can_only_be_raised():
+    p = Portfolio(D(1_000_000))
+    p.apply_fill("btc_idr", "buy", D("0.0001"), D("1000000000"), D(0), T, D("900000000"))
+    assert p.raise_stop("btc_idr", D("950000000")) and p.positions["btc_idr"].stop_loss == D("950000000")
+    assert not p.raise_stop("btc_idr", D("940000000"))
+    assert p.positions["btc_idr"].stop_loss == D("950000000")

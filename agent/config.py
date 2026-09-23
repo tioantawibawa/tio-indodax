@@ -140,24 +140,28 @@ class ReportingSettings(_Frozen):
 
 class StrategySettings(_Frozen):
     """Tunable strategy parameters. NOT hard limits: the risk manager caps
-    whatever the strategy proposes."""
+    whatever the strategy proposes. Values pre-registered in
+    docs/backtest_phase3.md before testing."""
 
-    timeframes: tuple[str, str, str] = ("15", "60", "240")  # entry, signal, trend
-    lookback_bars: int = Field(200, ge=60, le=1000)
+    timeframes: tuple[str, ...] = ("1D",)        # first = signal/timeline timeframe
+    lookback_bars: int = Field(300, ge=60, le=1000)
+    # trend_follow
+    breakout_bars: int = Field(20, ge=2)
+    trend_ema: int = Field(100, ge=2)
+    atr_period: int = Field(20, ge=2)
+    chandelier_bars: int = Field(22, ge=2)
+    chandelier_atr_mult: float = Field(3.0, gt=0)
+    target_atr_mult: float = Field(4.0, gt=0)     # expected-move reference for the cost check only
+    risk_per_trade_pct: float = Field(1.0, gt=0, le=5)  # of agent capital, lost if SL hits
+    min_confidence: float = Field(0.55, ge=0, le=1)
+    # regime classification (reporting / LLM context)
     ema_fast: int = Field(20, ge=2)
     ema_slow: int = Field(50, ge=3)
     rsi_period: int = Field(14, ge=2)
-    atr_period: int = Field(14, ge=2)
     adx_period: int = Field(14, ge=2)
     adx_trend: float = Field(25, gt=0)
     adx_range: float = Field(20, gt=0)
-    high_vol_atr_ratio: float = Field(2.0, gt=1)   # ATR% vs its median -> HIGH_VOLATILITY
-    sl_atr_mult: float = Field(2.0, gt=0)
-    tp_atr_mult: float = Field(3.0, gt=0)
-    mr_rsi_max: float = Field(32, gt=0, lt=50)
-    mr_sl_atr_mult: float = Field(1.5, gt=0)
-    risk_per_trade_pct: float = Field(1.0, gt=0, le=5)  # of agent capital, lost if SL hits
-    min_confidence: float = Field(0.55, ge=0, le=1)
+    high_vol_atr_ratio: float = Field(2.0, gt=1)
 
     @model_validator(mode="after")
     def _ordering(self) -> "StrategySettings":
@@ -165,9 +169,14 @@ class StrategySettings(_Frozen):
             raise ValueError("ema_fast must be < ema_slow")
         if self.adx_range > self.adx_trend:
             raise ValueError("adx_range must be <= adx_trend")
+        if not self.timeframes:
+            raise ValueError("at least one timeframe required")
         for tf in self.timeframes:
             if tf not in ("1", "15", "30", "60", "240", "1D"):
                 raise ValueError(f"unsupported timeframe {tf}")
+        need = max(self.trend_ema, self.breakout_bars, self.chandelier_bars, self.ema_slow) + 10
+        if self.lookback_bars < need:
+            raise ValueError(f"lookback_bars must be >= {need} for the configured indicators")
         return self
 
 

@@ -4,8 +4,9 @@ Agent auto-trading kripto untuk Indodax: berjalan 24/7 di VPS, menganalisa pasar
 limit order secara mandiri **di dalam batas risiko keras (hard limits) yang di-enforce oleh kode**,
 dan mengirim laporan harian ke Telegram.
 
-> ⚠️ **Status: Fase 3 sedang berjalan** — backtester siap, menunggu data historis Indodax.
-> Belum ada eksekusi order, belum ada pemanggilan endpoint private.
+> ⚠️ **Status: Fase 3 selesai** — strategi `trend_follow` lolos kriteria backtest 2018–2026
+> (lihat [`docs/backtest_phase3.md`](docs/backtest_phase3.md)). Belum ada eksekusi order,
+> belum ada pemanggilan endpoint private. Berikutnya: Fase 4 (paper trading + Telegram).
 
 ## Risiko — baca dulu
 
@@ -39,19 +40,21 @@ Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, 
 
 ## Alur keputusan per siklus (`agent/engine.py`)
 
-1. **Data** — ticker, orderbook, candle 15m/1h/4h (hanya candle yang sudah close; cache per timeframe).
-2. **Analisa** — EMA, RSI, MACD, ATR, Bollinger, ADX, rasio volume per timeframe → regime
-   `trending_up / trending_down / ranging / high_volatility / no_trade`.
-3. **Exit dulu** — posisi terbuka dicek: SL kena → *emergency market sell*; TP kena atau regime 1h
-   berbalik turun / volatil → limit sell.
-4. **Entry** — dua setup long-only (spot): *trend pullback* (4h tidak turun, 1h trending up, 15m RSI 40–65
-   + MACD histogram naik) dan *range reversion* (1h ranging, 15m di bawah Bollinger bawah + RSI < 32).
-   SL berbasis ATR, TP berbasis ATR / Bollinger tengah, ukuran = risiko 1% modal bila SL kena.
+1. **Data** — ticker, orderbook, 300 candle harian (1D, 00:00 UTC; hanya candle yang sudah close).
+2. **Analisa** — EMA, RSI, MACD, ATR, Bollinger, ADX, Donchian high, Chandelier stop → regime
+   `trending_up / trending_down / ranging / high_volatility / no_trade` (untuk konteks & laporan).
+3. **Exit dulu** — bid ≤ stop → *emergency market sell*. Stop posisi lain dinaikkan (trailing Chandelier:
+   high tertinggi 22 hari − 3×ATR), **tidak pernah diturunkan**.
+4. **Entry** (`trend_follow`, long-only spot) — close harian > high tertinggi 20 hari sebelumnya **dan**
+   close > EMA100 → limit buy di best ask. Stop awal = Chandelier. Tanpa take-profit tetap: posisi
+   berjalan sampai trailing stop kena. Ukuran = risiko 1% modal bila stop kena (lalu dibatasi hard limit).
 5. **LLM (opsional)** — hanya bisa menggeser confidence maks ±0,2 atau menahan proposal *buy*
-   bila bearish ≥ 0,7. Tidak bisa membuat order, mengubah harga/qty/SL/TP, atau menyentuh limit.
+   bila bearish ≥ 0,7. Tidak bisa membuat order, mengubah harga/qty/SL, atau menyentuh limit.
    Error/timeout → siklus lanjut tanpa LLM.
 6. **Risk manager** — APPROVE / RESIZE / VETO (detail di bawah).
 7. **Jurnal** — setiap keputusan, termasuk VETO dan veto LLM, disimpan di tabel `decisions` beserta alasannya.
+
+Strategi intraday versi pertama (15m/1h/4h) gagal di backtest dan diganti — lihat `docs/backtest_phase3.md`.
 
 ## Hard limits (`agent/risk/risk_manager.py`)
 
@@ -68,7 +71,7 @@ Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, 
 | Stop-loss wajib | buy tanpa SL, atau SL ≥ harga entry → VETO; tidak bisa dimatikan lewat config |
 | Cooldown 30 menit setelah SL | per pair |
 | Rekonsiliasi gagal | semua order di-VETO sampai rekonsiliasi |
-| Biaya | expected move harus ≥ 2× biaya round-trip (fee maker+taker, pajak, kliring, spread, slippage) |
+| Biaya | expected move (TP, atau target = entry + 4×ATR) harus ≥ 2× biaya round-trip (fee, pajak, kliring, spread, slippage) |
 | Likuiditas | spread ≤ 0,3%, volume 24 jam ≥ minimum, slippage untuk keluar dari posisi ≤ 0,2% |
 | Tanpa short | sell hanya sampai jumlah yang dipegang |
 
@@ -84,14 +87,14 @@ memverifikasi tidak ada order yang disetujui melanggar limit mana pun.
 ## Backtest
 
 ```bash
-.venv/bin/python -m scripts.download_history --months 6        # data/history/*.csv + pairs.json
-.venv/bin/python -m scripts.run_backtest --data data/history --out reports/backtest
+.venv/bin/python -m scripts.download_history --since 2015-01-01   # data/history/*.csv + pairs.json
+.venv/bin/python -m scripts.run_backtest --data data/history --out reports/phase3r/full --start 2018-01-01
 ```
 
 Backtester (`agent/backtest/backtester.py`) memakai **kode keputusan yang sama persis** dengan live
 (strategy, risk manager, portfolio, engine); hanya data pasar dan fill yang disimulasikan:
-limit buy hanya terisi bila harga menembus limit, stop-loss dicek intrabar dan saat gap terisi di
-harga open dikurangi slippage, bila SL dan TP tersentuh di candle yang sama diasumsikan SL duluan.
+limit buy yang marketable terisi di best ask dengan fee taker, stop dicek intrabar dan saat gap terisi
+di harga open dikurangi slippage, candle yang belum close tidak pernah dipakai.
 Orderbook historis tidak tersedia, jadi spread (default 0,1%) dan slippage (default 0,1%) adalah asumsi
 yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`, `equity.csv`, `metrics.json`.
 

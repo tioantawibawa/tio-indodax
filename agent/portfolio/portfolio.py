@@ -102,9 +102,13 @@ class Portfolio:
             return FillResult(realized, new)
         raise ValueError(f"unknown side {side!r}")
 
-    def update_levels(self, pair: str, stop_loss: Decimal | None, take_profit: Decimal | None) -> None:
+    def raise_stop(self, pair: str, new_stop: Decimal) -> bool:
+        """Move the stop-loss up. A stop is never loosened: lower values are ignored."""
         pos = self.positions[pair]
-        self.positions[pair] = replace(pos, stop_loss=stop_loss, take_profit=take_profit)
+        if pos.stop_loss is not None and new_stop <= pos.stop_loss:
+            return False
+        self.positions[pair] = replace(pos, stop_loss=new_stop)
+        return True
 
     # ------------------------------------------------------------ valuation
 

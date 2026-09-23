@@ -150,6 +150,15 @@ class DecisionEngine:
             if prop is not None:
                 record(self.risk.evaluate(prop, ctx, MarketView(m.info, m.ticker, m.orderbook)))
 
+        # 1b) trail stops of positions still held (from closed candles; never loosened)
+        exited = {d.proposal.pair for _, d in decisions if d.approved and d.proposal.side == "sell"}
+        for pair, pos in list(portfolio.positions.items()):
+            if pair in exited:
+                continue
+            new = self.strategy.trail_stop(pos, feats[pair], markets[pair].info)
+            if new is not None and portfolio.raise_stop(pair, new):
+                log.info("stop_raised", pair=pair, old=str(pos.stop_loss), new=str(new))
+
         # 2) entries
         for pair in self.s.market.whitelist:
             m = markets.get(pair)

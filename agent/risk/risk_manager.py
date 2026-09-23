@@ -255,8 +255,9 @@ class RiskManager:
             return veto("stop-loss is mandatory for every position")
         if p.stop_loss is not None and p.stop_loss >= p.price:
             return veto(f"stop-loss {p.stop_loss} must be below entry {p.price}")
-        if p.take_profit is None or p.take_profit <= p.price:
-            return veto("take-profit above entry is required to evaluate expected move")
+        ref = p.take_profit if p.take_profit is not None else p.target
+        if ref is None or ref <= p.price:
+            return veto("take-profit or target above entry is required to evaluate expected move")
 
         # cooldown after stop-loss on the same pair
         last_sl = ctx.last_stoploss_at.get(p.pair)
@@ -328,7 +329,7 @@ class RiskManager:
 
         # ---- cost vs expected move (computed here, not trusted from strategy)
         costs = self._costs.round_trip(info, spread, est_exit.slippage_pct)
-        expected = (p.take_profit - price) / price * HUNDRED
+        expected = (ref - price) / price * HUNDRED
         need = costs.total_pct * self._pct(self._fees.min_edge_multiple)
         metrics.update(expected_move_pct=str(expected), round_trip_cost_pct=str(costs.total_pct))
         if expected < need:

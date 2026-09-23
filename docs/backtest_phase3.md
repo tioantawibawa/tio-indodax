@@ -71,3 +71,34 @@ Lolos hanya jika **semua** terpenuhi (asumsi spread 0,1%, slippage 0,1%, fee pen
 3. Max drawdown < 15%
 
 Jika tidak lolos: dilaporkan apa adanya, tidak lanjut ke live.
+
+## Hasil revisi (kode final, spread 0,1%, slippage 0,1%, fee penuh)
+
+| Periode | Return bersih | /tahun | PF | Max DD | Trade | Win | Fee | Sebelum fee | Buy & hold |
+|---|---|---|---|---|---|---|---|---|---|
+| **2018 – 2026-09** | **+57,6%** | +5,4% | **2,33** | **5,7%** | 131 | 47% | Rp 79.601 | Rp 655.743 | BTC +615%, ETH +309%, SOL −37%* |
+| 2018–2019 | +9,7% | +4,8% | 2,52 | 3,7% | 18 | 44% | Rp 11.002 | Rp 108.252 | BTC −53%, ETH −85% |
+| 2020–2021 | +36,9% | +17,0% | 8,05 | 3,9% | 28 | 68% | Rp 16.396 | Rp 385.544 | BTC +561%, ETH +2806% |
+| 2022–2023 | +6,0% | +3,0% | 1,51 | 6,4% | 32 | 44% | Rp 19.180 | Rp 79.536 | BTC −3%, ETH −34%, SOL −38% |
+| 2024–2026-09 | +4,9% | +1,8% | 1,22 | 8,5% | 53 | 40% | Rp 33.022 | Rp 82.411 | BTC +125%, ETH +35%, SOL +24% |
+
+\* SOL sejak listing Nov 2021.
+
+**Kriteria yang didaftarkan: LOLOS semua** — PF keseluruhan 2,33 > 1,3; return bersih positif di keempat
+sub-periode; max drawdown 5,7% < 15%.
+
+### Uji ketahanan (bukan tuning — parameter live tetap yang didaftarkan)
+- Parameter tetangga (breakout 15/30, chandelier 2,5/3,5 ATR, EMA 50/200): **semua lolos** kriteria
+  (return penuh +50% s/d +65%, PF 2,1–2,7). Hasil tidak bergantung pada satu titik parameter.
+- Biaya dinaikkan: spread 0,2% + slippage 0,5% → +52,2%, PF 2,14; spread 0,25% + slippage 1% → +45,9%,
+  PF 1,94, semua sub-periode tetap positif (2024–2026 hanya +0,3%).
+- Catatan: spread ≥ 0,3% menyentuh batas `max_spread_pct` sehingga risk manager memblokir entry — itu
+  perilaku filter, bukan hasil ekonomi.
+
+### Keterbatasan yang harus dipahami
+1. **Return absolut kecil (~5%/tahun) dan jauh di bawah buy & hold di pasar naik.** Penyebab utamanya
+   hard limit: maks 10% modal per posisi dan 3 posisi → paling banyak ~30% modal yang bekerja. Imbalannya,
+   drawdown hanya 5,7% (buy & hold BTC/ETH pernah −53% s/d −85%). Menaikkan `max_position_pct` akan
+   memperbesar return *dan* drawdown — keputusan pemilik.
+2. **Edge melemah di periode terakhir** (2024–2026: PF 1,22, +1,8%/tahun). Perlu dipantau di paper trading.
+3. Backtest bukan jaminan. Spread/slippage historis adalah asumsi (nyata saat ini jauh lebih tipis).
