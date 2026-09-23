@@ -81,7 +81,9 @@ class Portfolio:
                     pos,
                     qty=total_qty,
                     avg_cost=(pos.avg_cost * pos.qty + cost) / total_qty,
-                    stop_loss=stop_loss if stop_loss is not None else pos.stop_loss,
+                    # adding to a position must never loosen its stop
+                    stop_loss=(max(stop_loss, pos.stop_loss) if stop_loss is not None and pos.stop_loss is not None
+                               else stop_loss if stop_loss is not None else pos.stop_loss),
                     take_profit=take_profit if take_profit is not None else pos.take_profit,
                 )
             self.positions[pair] = new

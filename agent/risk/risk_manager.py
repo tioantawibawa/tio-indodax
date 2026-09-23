@@ -287,7 +287,7 @@ class RiskManager:
             (v for k, v in ctx.position_value_idr.items() if base_asset(k) == asset), ZERO
         ) + sum((v for k, v in ctx.pending_buy_idr.items() if base_asset(k) == asset), ZERO)
         deployed = sum(ctx.position_value_idr.values(), ZERO) + sum(ctx.pending_buy_idr.values(), ZERO)
-        fee_mult = 1 + self._costs.leg_fee_pct(info, maker=True) / HUNDRED
+        fee_mult = 1 + self._costs.leg_fee_pct(info, maker=False) / HUNDRED  # taker: worst case
         committed_cash = sum(ctx.pending_buy_idr.values(), ZERO)
         caps = {
             "max_position": cap * self._pct(L.max_position_pct) / HUNDRED - pos_val,

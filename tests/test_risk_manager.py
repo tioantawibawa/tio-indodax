@@ -133,7 +133,7 @@ def test_asset_exposure_across_pairs():
 def test_cannot_spend_more_than_agent_cash(rm):
     d = rm.evaluate(buy(), ctx(cash_idr=D(50_000)), market_view())
     assert d.verdict == Verdict.RESIZE
-    fee = D("1.002422")  # maker 0.1% + tax 0.12% + clearing 0.0222%
+    fee = D("1.003422")  # taker 0.2% + tax 0.12% + clearing 0.0222% (worst case)
     assert d.qty * d.price * fee <= D(50_000)
 
 

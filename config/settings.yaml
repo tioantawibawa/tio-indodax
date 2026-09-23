@@ -33,7 +33,7 @@ fees:
   min_edge_multiple: 2.0                          # expected move must be >= 2x round-trip cost
 
 risk:
-  agent_capital_idr: 1000000                      # placeholder Rp 1.000.000 — please confirm
+  agent_capital_idr: 500000                       # confirmed by owner: Rp 500.000
   max_position_pct: 10
   max_open_positions: 3
   max_asset_exposure_pct: 30

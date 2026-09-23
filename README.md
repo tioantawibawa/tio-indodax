@@ -4,9 +4,9 @@ Agent auto-trading kripto untuk Indodax: berjalan 24/7 di VPS, menganalisa pasar
 limit order secara mandiri **di dalam batas risiko keras (hard limits) yang di-enforce oleh kode**,
 dan mengirim laporan harian ke Telegram.
 
-> ⚠️ **Status: Fase 3 selesai** — strategi `trend_follow` lolos kriteria backtest 2018–2026
-> (lihat [`docs/backtest_phase3.md`](docs/backtest_phase3.md)). Belum ada eksekusi order,
-> belum ada pemanggilan endpoint private. Berikutnya: Fase 4 (paper trading + Telegram).
+> ⚠️ **Status: Fase 4 selesai** — paper trading (data live, order disimulasikan), bot Telegram,
+> laporan harian, API private read-only. Mode live (Fase 5) belum tersedia dan ditolak saat start.
+> Deploy: [`deploy/README_DEPLOY.md`](deploy/README_DEPLOY.md).
 
 ## Risiko — baca dulu
 
@@ -32,8 +32,9 @@ data → analisa → strategy (TradeProposal) → risk_manager (APPROVE/RESIZE/V
 | `agent/execution/` | limit order, cancel/replace, konfirmasi fill, deadman switch | 5 |
 | `agent/portfolio/` | saldo, posisi, PnL | 2/4 |
 | `agent/storage/` | SQLite: orders, fills, decisions, daily_pnl, errors | 2 |
-| `agent/reporting/` | bot Telegram, laporan harian | 4 |
-| `agent/backtest/` | backtester, paper broker | 3/4 |
+| `agent/reporting/` | bot Telegram (hanya chat Anda), alert, laporan harian 21:00 WIB | 4 |
+| `agent/backtest/` | backtester, paper broker (simulasi di orderbook live) | 3/4 |
+| `agent/runner.py`, `agent/main.py` | loop 5 menit, status RUNNING/PAUSED/HALTED, scheduler, shutdown rapi | 4 |
 
 Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, ambiguitas):
 [`docs/indodax_api_notes.md`](docs/indodax_api_notes.md).
@@ -106,6 +107,18 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
   (sudah di `.gitignore`).
 - `MODE=backtest|paper|live`. Live butuh `LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` dan ≥14 hari hasil paper
   di DB (gate kedua diimplementasi Fase 5).
+
+## Paper trading & Telegram (Fase 4)
+
+- Siklus tiap 5 menit memakai data live; order disimulasikan oleh `paper_broker.py` di orderbook asli
+  (fee taker/maker + pajak + kliring, walk the book). Tidak ada endpoint order yang dipanggil.
+- State (fill → posisi, stop, status, puncak equity, PnL harian) di SQLite; restart membangun ulang
+  semuanya dan tidak pernah mengeksekusi keputusan yang sama dua kali.
+- Status: `PAUSED` oleh `/pause`, batas rugi harian (otomatis lanjut besok), atau jam VPS meleset
+  (otomatis lanjut saat jam normal). `HALTED` oleh kill switch drawdown atau `/kill CONFIRM`
+  (perlu `/resume`; resume me-reset puncak equity kill switch).
+- Alert: order terisi, stop-loss, batas rugi harian, kill switch, error berulang (3×), agent start.
+- API private hanya read-only (allow-list method); trade/cancel/withdraw ditolak sebelum request dibuat.
 
 ## Menjalankan (dev)
 

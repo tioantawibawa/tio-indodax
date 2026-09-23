@@ -8,3 +8,5 @@ pandas>=2.2
 numpy>=1.26
 # Optional LLM analyst (only used when LLM_ENABLED=true)
 anthropic>=1.8
+python-telegram-bot>=21,<23
+APScheduler>=3.10,<4

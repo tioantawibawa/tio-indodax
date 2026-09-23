@@ -1,0 +1,34 @@
+[Unit]
+Description=Indodax trading agent
+Wants=network-online.target time-sync.target
+After=network-online.target time-sync.target
+
+[Service]
+Type=simple
+User=indodax
+Group=indodax
+WorkingDirectory=/opt/indodax-agent
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/indodax-agent/.venv/bin/python -m agent.main
+Restart=always
+RestartSec=15
+# graceful stop: agent handles SIGTERM
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# isolation from the rest of the VPS
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/indodax-agent/data /opt/indodax-agent/logs
+MemoryMax=768M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
