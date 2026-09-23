@@ -1,6 +1,8 @@
 from decimal import Decimal as D
 
-from agent.data.market_data import MarketDataService, candles_to_df, closed_only
+import pytest
+
+from agent.data.market_data import MarketDataService, StaleMarketDataError, candles_to_df, closed_only
 from agent.exchange.models import Candle
 from tests.helpers import book, pair_info, ticker
 
@@ -24,12 +26,16 @@ def test_candles_to_df():
 class FakeClient:
     def __init__(self):
         self.ohlc_calls = 0
+        self.server_time = None   # None -> follow the test clock
+        self.clock = None
 
     async def pairs(self):
         return {"btc_idr": pair_info()}
 
     async def ticker(self, pair):
-        return ticker()
+        t = ticker()
+        st = self.server_time if self.server_time is not None else int(self.clock[0])
+        return t.__class__(**{**t.__dict__, "server_time": st})
 
     async def depth(self, pair):
         return book()
@@ -43,6 +49,7 @@ class FakeClient:
 async def test_fetch_and_candle_cache():
     now = [108_000.0]  # exactly on an hour boundary
     fc = FakeClient()
+    fc.clock = now
     svc = MarketDataService(fc, ["15", "60"], lookback_bars=100, now=lambda: now[0])
     m = await svc.fetch("btc_idr")
     assert set(m.candles) == {"15", "60"} and fc.ohlc_calls == 2
@@ -54,3 +61,14 @@ async def test_fetch_and_candle_cache():
     now[0] += 900          # new 15m candle closed, 1h not yet
     await svc.fetch("btc_idr")
     assert fc.ohlc_calls == 3
+
+
+async def test_stale_ticker_rejected():
+    fc = FakeClient()
+    now = [108_000.0]
+    svc = MarketDataService(fc, ["15"], lookback_bars=100, now=lambda: now[0])
+    fc.server_time = 108_000 - 30
+    await svc.fetch("btc_idr")                     # 30 s old: fine
+    fc.server_time = 108_000 - 120
+    with pytest.raises(StaleMarketDataError):
+        await svc.fetch("btc_idr")

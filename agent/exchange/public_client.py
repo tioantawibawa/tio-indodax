@@ -3,7 +3,8 @@
 Docs: Public-RestAPI.md in btcid/indodax-official-api-docs
 (summarised in docs/indodax_api_notes.md §3).
 
-Features: client-side rate limiting (official limit 180 req/min per IP),
+Features: cache-busting (Indodax responses are CDN-cacheable for 30-60 s),
+client-side rate limiting (official limit 180 req/min per IP),
 retries with exponential backoff + jitter on network errors / 429 / 5xx,
 strict response parsing into Decimal-based models.
 """
@@ -113,8 +114,12 @@ class IndodaxPublicClient:
         last_exc: Exception | None = None
         for attempt in range(self.max_retries + 1):
             await self._limiter.acquire()
+            # Indodax sends `cache-control: public, max-age=30` and Cloudflare serves cached
+            # copies (stale prices / server_time). A unique query param forces a fresh response.
+            q = {**(params or {}), "_": time.time_ns()}
             try:
-                resp = await self._http.get(url, params=params)
+                resp = await self._http.get(url, params=q, headers={"Cache-Control": "no-cache",
+                                                                    "Pragma": "no-cache"})
             except httpx.TransportError as e:  # timeouts, connection errors
                 last_exc = e
                 log.warning("public_api_network_error", path=path, attempt=attempt, error=type(e).__name__)

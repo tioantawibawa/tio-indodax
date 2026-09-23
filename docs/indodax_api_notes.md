@@ -57,6 +57,11 @@ Konversi di `agent/exchange/pairs.py`.
   OHLC `Time` dalam **detik**; `/api/server_time.server_time` dalam **ms**. ⚠️ Parser menangani keduanya
   (heuristik: nilai > 10^12 = ms).
 - Angka sering dikirim sebagai **string** → parser selalu konversi ke `Decimal`.
+- ⚠️ **Cache CDN (terverifikasi 2026-09-23):** semua endpoint publik mengirim
+  `cache-control: public, max-age=30` (OHLC `max-age=60`) dan Cloudflare menyajikan salinan cache —
+  `server_time` basi membuat estimasi jam meleset hingga ~800 ms, dan ticker/orderbook bisa basi hingga 30 dtk.
+  Klien menambahkan parameter unik `_=<ns>` + header `Cache-Control: no-cache` di setiap request
+  (hasil: `cf-cache-status: MISS`, data segar). Ticker yang lebih tua dari 60 dtk ditolak (tidak dipakai trading).
 
 | Endpoint | Isi |
 |---|---|

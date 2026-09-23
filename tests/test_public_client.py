@@ -170,3 +170,13 @@ def test_backoff_bounded(client):
         d = client._backoff(attempt)
         assert 0 < d <= client.backoff_max_s
     assert client._backoff(0, retry_after="3") == 3
+
+
+@respx.mock
+async def test_every_request_is_cache_busted(client):
+    route = respx.get(f"{BASE}/api/server_time").mock(return_value=httpx.Response(200, json=fx.SERVER_TIME))
+    await client.server_time_ms()
+    await client.server_time_ms()
+    busts = [c.request.url.params["_"] for c in route.calls]
+    assert len(set(busts)) == 2
+    assert all(c.request.headers["Cache-Control"] == "no-cache" for c in route.calls)
