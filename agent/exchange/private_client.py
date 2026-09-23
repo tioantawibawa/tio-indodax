@@ -32,6 +32,9 @@ log = structlog.get_logger(__name__)
 LEGACY_READ_METHODS = frozenset({
     "getInfo", "openOrders", "getOrder", "getOrderByClientOrderId", "transHistory",
 })
+# Probe only: withdrawFee returns fee info and moves no funds, but it requires the
+# key's withdraw permission -> a safe way to detect that permission on legacy keys.
+LEGACY_PROBE_METHODS = frozenset({"withdrawFee"})
 V2_READ_PATHS = frozenset({
     "/api/v2/account", "/api/v2/openOrders", "/api/v2/order", "/api/v2/myTrades", "/api/v2/order/histories",
 })
@@ -134,7 +137,7 @@ class PrivateReadOnlyClient:
         raise IndodaxNetworkError(name)  # pragma: no cover
 
     async def legacy(self, method: str, **params: Any) -> dict:
-        if method not in LEGACY_READ_METHODS:
+        if method not in LEGACY_READ_METHODS | LEGACY_PROBE_METHODS:
             raise ForbiddenOperationError(f"legacy method {method!r} is not read-only; refused")
 
         async def send():
@@ -227,6 +230,18 @@ class PrivateReadOnlyClient:
         except IndodaxAPIError as e:
             legacy_ok = False
             notes.append(f"legacy /tapi not usable: {e}")
+        if legacy_ok:
+            try:
+                await self.legacy("withdrawFee", currency="btc")
+                withdraw = True
+                notes.append("legacy withdrawFee berhasil -> key ini PUNYA izin withdraw")
+            except IndodaxAPIError as e:
+                text = str(e).lower()
+                if "permission" in text or "no_permission" in str(e.code).lower():
+                    withdraw = False
+                    notes.append("legacy withdrawFee ditolak (no permission) -> key TANPA izin withdraw")
+                else:
+                    notes.append(f"legacy withdrawFee: hasil tidak pasti ({e})")
         try:
             _, can_trade, can_withdraw = await self.account_v2()
             v2_ok = True

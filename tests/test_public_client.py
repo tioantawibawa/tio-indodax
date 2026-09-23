@@ -31,7 +31,10 @@ async def test_server_time_and_offset(client):
     respx.get(f"{BASE}/api/server_time").mock(return_value=httpx.Response(200, json=fx.SERVER_TIME))
     assert await client.server_time_ms() == 1571205969552
     ticks = iter([1571205969.0, 1571205969.2])  # local midpoint = ...969100 ms
-    assert await client.clock_offset_ms(now=lambda: next(ticks)) == 452
+    assert await client.clock_offset_ms(now=lambda: next(ticks), samples=1) == 452
+    # slow sample (1.3 s RTT) is ignored in favour of the fastest one
+    ticks = iter([1571205968.0, 1571205969.3, 1571205969.50, 1571205969.52])
+    assert await client.clock_offset_ms(now=lambda: next(ticks), samples=2) == 1571205969552 - 1571205969510
 
 
 @respx.mock

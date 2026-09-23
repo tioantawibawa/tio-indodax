@@ -117,7 +117,10 @@ Catatan OHLC:
 - Izin key: `view` (getInfo, transHistory, tradeHistory, openOrders, orderHistory, getOrder,
   getOrderByClientOrderId), `trade` (trade, cancelOrder, cancelByClientOrderId), `withdraw`
   (withdrawFee, withdrawCoin).
-- **Cek izin withdraw:** `getInfo.return.withdraw_status` (1 = user bisa withdraw) — ⚠️ ini status akun,
+- ✅ **Deteksi izin withdraw pada key legacy** (terverifikasi 2026-09-23 dengan key legacy pemilik: v2 menolak
+  dengan `-2015 Invalid TAPI version key`): agent memanggil `withdrawFee` (hanya info biaya, tidak memindahkan
+  dana; butuh izin withdraw). Berhasil → key PUNYA izin withdraw → live ditolak. "No permission" → aman.
+- **Cek izin withdraw (lama):** `getInfo.return.withdraw_status` (1 = user bisa withdraw) — ⚠️ ini status akun,
   bukan izin key. TAPIv2 `GET /api/v2/account` memberi `canWithdraw` (lebih relevan). Agent akan
   memanggil keduanya bila tersedia dan **menolak mode live bila ada indikasi izin withdraw**.
 - Rate limit `trade`: **20 req/detik per akun per pair**; lewat batas → blok 5 detik, HTTP 429

@@ -157,13 +157,23 @@ class IndodaxPublicClient:
         except (KeyError, TypeError, ValueError) as e:
             raise IndodaxResponseFormatError("server_time malformed") from e
 
-    async def clock_offset_ms(self, now: Callable[[], float] = time.time) -> int:
-        """Estimate ``server_time - local_time`` using the request midpoint."""
-        t0 = now()
-        server = await self.server_time_ms()
-        t1 = now()
-        local_mid_ms = int((t0 + t1) / 2 * 1000)
-        return server - local_mid_ms
+    async def clock_offset_ms(self, now: Callable[[], float] = time.time, samples: int = 5) -> int:
+        """Estimate ``server_time - local_time`` (ms).
+
+        Takes several samples and keeps the one with the smallest round trip
+        (as NTP does): a single slow request can skew a midpoint estimate by
+        hundreds of milliseconds.
+        """
+        best: tuple[float, int] | None = None
+        for _ in range(max(1, samples)):
+            t0 = now()
+            server = await self.server_time_ms()
+            t1 = now()
+            rtt = t1 - t0
+            offset = server - int((t0 + t1) / 2 * 1000)
+            if best is None or rtt < best[0]:
+                best = (rtt, offset)
+        return best[1]  # type: ignore[index]
 
     async def price_increments(self) -> dict[str, Decimal]:
         data = await self._get("/api/price_increments")

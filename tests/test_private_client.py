@@ -24,7 +24,7 @@ async def pc():
 
 
 @pytest.mark.parametrize("method", ["trade", "cancelOrder", "cancelByClientOrderId", "withdrawCoin",
-                                    "withdrawFee", "createVoucher"])
+                                    "createVoucher", "listDownline"])
 async def test_non_read_methods_refused_before_any_request(pc, method):
     with respx.mock(assert_all_called=False) as mock:
         route = mock.post(TAPI)
@@ -84,10 +84,36 @@ async def test_v2_error_raises(pc):
     assert ei.value.code == -2015
 
 
+def _legacy_router(withdraw_fee_response):
+    def handler(request):
+        body = parse_qs(request.content.decode())
+        if body["method"] == ["withdrawFee"]:
+            return withdraw_fee_response
+        return httpx.Response(200, json={"success": 1, "return": {
+            "balance": {}, "balance_hold": {}, "withdraw_status": 1}})
+    return handler
+
+
+@respx.mock
+async def test_withdraw_probe_legacy_only_key(pc):
+    respx.get(url__startswith=f"{V2}/api/v2/account").mock(
+        return_value=httpx.Response(403, json={"code": -2015, "msg": "Invalid TAPI version key"}))
+    respx.post(TAPI).mock(side_effect=_legacy_router(httpx.Response(200, json={
+        "success": 0, "error": "No permission", "error_code": ""})))
+    rep = await pc.permission_report()
+    assert rep.legacy_ok and rep.v2_ok is False and rep.withdraw_possible is False
+    respx.post(TAPI).mock(side_effect=_legacy_router(httpx.Response(200, json={
+        "success": 1, "return": {"server_time": 1, "withdraw_fee": 0.0005, "currency": "btc"}})))
+    assert (await pc.permission_report()).withdraw_possible is True
+    respx.post(TAPI).mock(side_effect=_legacy_router(httpx.Response(200, json={
+        "success": 0, "error": "Internal error", "error_code": "internal_server_error"})))
+    assert (await pc.permission_report()).withdraw_possible is None   # unknown stays unknown
+
+
 @respx.mock
 async def test_permission_report_flags_withdraw_only_from_v2(pc):
-    respx.post(TAPI).mock(return_value=httpx.Response(200, json={"success": 1, "return": {
-        "balance": {}, "balance_hold": {}, "withdraw_status": 1}}))
+    respx.post(TAPI).mock(side_effect=_legacy_router(httpx.Response(200, json={
+        "success": 0, "error": "No permission", "error_code": ""})))
     respx.get(url__startswith=f"{V2}/api/v2/account").mock(return_value=httpx.Response(200, json={
         "canTrade": True, "canWithdraw": False, "balances": []}))
     rep = await pc.permission_report()
