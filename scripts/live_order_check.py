@@ -1,9 +1,6 @@
 """Validate order placement/parsing against the REAL exchange with the smallest possible orders.
 
-    # demo account (AGENT_SETTINGS=config/settings.demo.yaml in .env):
-    python -m scripts.live_order_check
-    python -m scripts.live_order_check --fill
-    # production (real money, hard cap Rp 20.000 per order):
+    # real account (the demo account is not available to regular users); hard cap Rp 20.000 per order:
     python -m scripts.live_order_check --production
     python -m scripts.live_order_check --production --fill
 

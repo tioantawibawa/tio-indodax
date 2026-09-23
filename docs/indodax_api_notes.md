@@ -21,9 +21,9 @@ Tanda: ✅ = sudah diverifikasi (contoh signature dihitung ulang), ⚠️ = ambi
 | Market Data WS | `wss://ws3.indodax.com/ws/` | static token publik (JSON-RPC ala Centrifugo) | ticker/orderbook real-time (opsional) |
 | Private WS | `wss://pws.indodax.com/ws/?cf_ws_frame_ping_pong=true` | token dari `POST /api/private_ws/v1/generate_token` | event order/fill real-time |
 
-Demo/sandbox: `https://demo-indodax.com` (REST + `/tapi`), `wss://ws.demo-indodax.com/ws/`,
-`wss://pws.demo-indodax.com/ws/`. Akun demo dapat saldo koin gratis, tidak bisa withdraw/deposit.
-→ **Berguna untuk uji Fase 5 sebelum modal nyata.**
+Demo/sandbox: dokumentasi menyebut `https://demo-indodax.com`, tetapi **akun demo tidak tersedia untuk
+pengguna umum** (dikonfirmasi pemilik, 2026-09-23). Validasi eksekusi dilakukan di akun asli dengan
+order minimum (`scripts/live_order_check.py --production`).
 
 ---
 

@@ -5,7 +5,7 @@ limit order secara mandiri **di dalam batas risiko keras (hard limits) yang di-e
 dan mengirim laporan harian ke Telegram.
 
 > ⚠️ **Status: Fase 5 selesai (kode)** — eksekusi live dengan semua guard, Deadman Switch, rekonsiliasi,
-> preflight. Mode live baru bisa aktif setelah 14 hari paper + uji order di akun demo & akun asli:
+> preflight. Mode live baru bisa aktif setelah 14 hari paper + uji order minimum di akun asli:
 > ikuti [`docs/go_live_checklist.md`](docs/go_live_checklist.md). Deploy: [`deploy/README_DEPLOY.md`](deploy/README_DEPLOY.md).
 
 ## Risiko — baca dulu
@@ -135,8 +135,9 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
 - **Rekonsiliasi** tiap siklus — koin di exchange < ledger agent, atau order agent tak dikenal → semua
   order diblokir, PAUSED + alert, lanjut otomatis bila cocok lagi. Saldo IDR asli membatasi ukuran order.
 - Fee per fill di `/tapi` legacy tidak tersedia → diestimasi konservatif (taker/maker + pajak + kliring).
-- Akun demo: `AGENT_SETTINGS=config/settings.demo.yaml` (URL demo, database terpisah). Validasi format
-  respons order dengan `scripts/live_order_check.py` sebelum live.
+- Validasi format respons order dengan `scripts/live_order_check.py --production` (order minimum,
+  Tes A tanpa biaya) sebelum live. Akun demo Indodax tidak tersedia untuk pengguna umum;
+  `config/settings.demo.yaml` hanya disimpan untuk bila akses demo tersedia di kemudian hari.
 - Keterbatasan: stop-loss dijalankan oleh agent (Indodax tidak punya stop order di API); saat agent mati,
   posisi tidak terlindungi stop-loss.
 

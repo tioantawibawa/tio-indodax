@@ -10,30 +10,30 @@ di VPS; perintah `agent-run.sh` menjalankan modul sebagai user `indodax`.
 - [ ] `sudo bash deploy/agent-run.sh scripts.check_private_api` → `withdraw mungkin: False`.
 - [ ] `sudo ls -l /opt/indodax-agent/.env` → `-rw-------` (600), owner `indodax`.
 
-## B. Uji eksekusi di akun DEMO (uang mainan)
-1. [ ] Daftar di https://demo-indodax.com (saldo koin demo otomatis), buat API key demo (view + trade).
-2. [ ] Buat `.env` demo sementara — **ganti** isi `.env` produksi setelah dicadangkan:
-   ```bash
-   sudo systemctl stop indodax-agent
-   sudo cp /opt/indodax-agent/.env /opt/indodax-agent/.env.production.bak
-   sudo -u indodax nano /opt/indodax-agent/.env
-   #   AGENT_SETTINGS=config/settings.demo.yaml
-   #   INDODAX_API_KEY / INDODAX_API_SECRET = key DEMO
-   ```
-3. [ ] `sudo bash deploy/agent-run.sh scripts.live_order_check` → **PASSED** (order tidak terisi, dibatalkan).
-4. [ ] `sudo bash deploy/agent-run.sh scripts.live_order_check --fill` → **PASSED** (beli+jual minimum).
-5. [ ] Kirim output + file `logs/order_check_*.json` ke developer untuk validasi format respons.
-       (`sudo cat /opt/indodax-agent/logs/order_check_*.json` — isinya tanpa key/secret.)
-6. [ ] Opsional: jalankan agent live di demo (`MODE=live`, `LIVE_CONFIRM=I_UNDERSTAND_THE_RISK`),
-       `sudo systemctl start indodax-agent`, pastikan Telegram menerima banner **MODE LIVE** tanpa
-       "Mode LIVE ditolak", lalu `/kill CONFIRM` dan `/resume` berfungsi.
-7. [ ] Kembalikan `.env` produksi:
-       `sudo cp /opt/indodax-agent/.env.production.bak /opt/indodax-agent/.env && sudo chmod 600 /opt/indodax-agent/.env && sudo chown indodax:indodax /opt/indodax-agent/.env`
+## B. Validasi eksekusi di akun ASLI dengan nominal minimum
+Akun demo Indodax tidak tersedia untuk pengguna umum, jadi format respons order divalidasi langsung di
+akun asli dengan order sekecil mungkin. Script ini **tidak** memakai strategi dan **tidak** menyentuh
+posisi agent; order-nya berawalan `chk-` (bukan order agent).
 
-## C. Uji di akun ASLI dengan nominal minimum (≈ Rp 10.000, biaya ≈ Rp 70)
-- [ ] `sudo bash deploy/agent-run.sh scripts.live_order_check --production` → PASSED.
-- [ ] `sudo bash deploy/agent-run.sh scripts.live_order_check --production --fill` → PASSED.
-- [ ] Kirim output ke developer.
+1. [ ] Pastikan tidak ada order manual Anda di `btc_idr` (agar tidak tertukar saat membaca hasil).
+2. [ ] **Tes A — biaya nol:** limit buy 10% di bawah harga (tidak akan terisi) → dibaca ulang → dibatalkan.
+   ```bash
+   sudo bash deploy/agent-run.sh scripts.live_order_check --production
+   ```
+   Harus berakhir `ORDER CHECK PASSED`. Butuh saldo IDR ≥ ±Rp 11.000 (order ditahan sebentar lalu dibatalkan).
+3. [ ] Kirim seluruh output + isi file hasil ke developer:
+   `sudo bash -c 'cat /opt/indodax-agent/logs/order_check_*.json'` (tanpa key/secret).
+4. [ ] **Tes B — biaya ±Rp 70** (setelah developer mengonfirmasi hasil Tes A): beli jumlah minimum
+   (±Rp 10.000) lalu langsung jual kembali.
+   ```bash
+   sudo bash deploy/agent-run.sh scripts.live_order_check --production --fill
+   ```
+   Kirim output-nya juga. Batas keras script: Rp 20.000 per order.
+
+## C. Canary: live dengan modal sangat kecil
+- [ ] Untuk minggu pertama live, turunkan `agent_capital_idr` di `/opt/indodax-agent/config/settings.yaml`
+      (mis. `100000`) sehingga posisi maks ±Rp 10.000. Setelah seminggu tanpa anomali, naikkan ke
+      Rp 500.000. (Catatan: `install.sh` menimpa config dari repo — ubah juga di repo Anda atau minta developer.)
 
 ## D. Syarat sebelum MODE=live di akun asli
 - [ ] ≥ 14 hari paper trading tercatat (`/status` → "paper days tersimpan").
