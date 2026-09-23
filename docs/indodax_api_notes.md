@@ -251,7 +251,16 @@ Status order: `NEW`, `PARTIALLY_FILLED`, `FILLED`, `CANCELLED`, `REJECTED`
   status ("open"), fee, order_rp, remain_rp, receive_btc`. Order buy berdenominasi IDR, dan
   `order_rp` **termasuk cadangan fee** (nilai 10.510,92 → order_rp 10.534, ≈ +0,22%), jadi qty dari
   `order_rp/price` sedikit kebesaran. Fill buy diambil dari `receive_btc`.
-- Entri `openOrders` **tidak punya field `status`** → dianggap open.
+- Entri `openOrders` **tidak punya field `status`**, qty buy di `order_idr`/`remain_idr` → dianggap open.
+- Cancel buy: getOrder → `status "cancelled"`, `remain_rp` tetap = sisa yang tidak terisi.
+- Buy marketable yang terisi penuh (Tes B): respons `trade` melaporkan **0 terisi**
+  (`receive_btc 0, spend_rp 0`); getOrder → `status "filled"`, `remain_rp "0"`, `refund_idr "40"`,
+  **`receive_btc 0` dan `fee 0`**. Saldo BTC bertambah **tepat** qty yang diorder (0,00000768),
+  sedangkan `order_rp/price` = 0,0000076964 (kebesaran 0,2%). → fill buy dibukukan sebagai
+  qty yang dikirim × fraksi terisi (`OrderState.filled_for`), dibulatkan ke bawah.
+- Sell terisi: `trade` juga melaporkan 0 terisi; getOrder → `order_btc`, `remain_btc`, `sold_btc`
+  (benar), `receive_idr 0`, `fee 0`. → fee & hasil IDR tidak dilaporkan: agent memakai estimasi
+  konservatif (harga limit, fee taker+pajak+kliring); saldo IDR asli dicek oleh rekonsiliasi.
 
 ## 10. Pertanyaan / ambiguitas untuk Anda ❓
 

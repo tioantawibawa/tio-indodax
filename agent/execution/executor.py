@@ -97,22 +97,24 @@ class LiveExecutor:
         return stop, row["setup"] or (row["proposal_reason"] or "")[:40], row["setup"] == "stop_loss"
 
     async def _apply_state(self, o, st: OrderState, now: datetime) -> list[FillEvent]:
-        """Record fills up to ``st.filled_qty`` and update the order row."""
+        """Record fills up to the cumulative filled qty and update the order row."""
         events: list[FillEvent] = []
         recorded = Decimal(o["filled_qty"] or "0")
-        delta = st.filled_qty - recorded
+        info = self.infos.get(o["pair"])
+        cumulative = st.filled_for(Decimal(o["qty"]), info.qty_step if info else None)
+        delta = cumulative - recorded
         if delta > 0:
             stop, reason, is_stop = self._decision_meta(o["decision_id"])
             ev = self._fill(o["client_order_id"], o["pair"], o["side"], delta, st.price or Decimal(o["price"]),
-                            None, maker=not o["is_emergency"], cumulative=st.filled_qty, now=now, reason=reason,
+                            None, maker=not o["is_emergency"], cumulative=cumulative, now=now, reason=reason,
                             stop_loss=stop if o["side"] == "buy" else None, is_stop=is_stop)
             if ev:
                 events.append(ev)
         status = {"filled": "FILLED", "cancelled": "CANCELLED"}.get(st.status)
         if status is None:
-            status = "PARTIALLY_FILLED" if st.filled_qty > 0 else "NEW"
+            status = "PARTIALLY_FILLED" if cumulative > 0 else "NEW"
         self.db.update_order(o["client_order_id"], status=status, exchange_order_id=st.order_id or None,
-                             filled_qty=max(st.filled_qty, recorded), ts=now)
+                             filled_qty=max(cumulative, recorded), ts=now)
         return events
 
     # ---------------------------------------------------------- execution

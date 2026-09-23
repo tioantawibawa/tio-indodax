@@ -101,18 +101,32 @@ def test_parse_order_shapes(raw, filled, status):
     assert st.filled_qty == filled and st.status == status and st.pair == "btc_idr"
 
 
-def test_parse_real_buy_order_uses_receive_not_fee_inflated_rp():
-    # real getOrderByClientOrderId response (2026-09-23), resting buy
-    raw = {"order_id": "268678770", "client_order_id": "chk-09ab8fc3", "price": "1354500000", "type": "buy",
-           "submit_time": "1790173394", "finish_time": "0", "status": "open", "fee": 0,
-           "order_rp": "10534", "remain_rp": "10534", "receive_btc": 0}
+def test_parse_real_buy_orders_book_submitted_qty_not_fee_inflated_rp():
+    # real getOrderByClientOrderId responses (2026-09-23)
+    resting = {"order_id": "268679410", "client_order_id": "chk-d66d2063", "price": "1350774000", "type": "buy",
+               "submit_time": "1790173736", "finish_time": "0", "status": "open", "fee": 0,
+               "order_rp": "10532", "remain_rp": "10532", "receive_btc": 0}
+    st = parse_order(resting, "btc_idr")
+    assert st.is_open and st.filled_for(D("0.00000778"), D("0.00000001")) == 0
+    filled = {"order_id": "268679416", "client_order_id": "chk-6c0d31a9", "price": "1506036000", "type": "buy",
+              "submit_time": "1790173739", "finish_time": "1790173739", "status": "filled", "fee": 0,
+              "order_rp": "11591", "remain_rp": "0", "refund_idr": "40", "receive_btc": 0}
+    st = parse_order(filled, "btc_idr")
+    assert st.filled_qty > D("0.00000768")                                # order_rp/price is inflated
+    assert st.filled_for(D("0.00000768"), D("0.00000001")) == D("0.00000768")   # balance credited
+    part = {**resting, "remain_rp": "5266"}
+    assert parse_order(part, "btc_idr").filled_for(D("0.00000778"), D("0.00000001")) == D("0.00000389")
+    got = {**part, "receive_btc": "0.0000038"}   # a positive receive_btc caps the booked qty
+    assert parse_order(got, "btc_idr").filled_for(D("0.00000778"), D("0.00000001")) == D("0.0000038")
+
+
+def test_parse_real_sell_order():
+    raw = {"order_id": "268679420", "client_order_id": "chk-8d23fadc", "price": "1497858000", "type": "sell",
+           "submit_time": "1790173741", "finish_time": "1790173741", "status": "filled", "fee": 0,
+           "receive_idr": 0, "order_btc": "0.00000768", "remain_btc": "0.00000000", "sold_btc": "0.00000768"}
     st = parse_order(raw, "btc_idr")
-    assert st.is_open and st.filled_qty == 0 and st.side == "buy"
-    # filled: order_rp includes ~0.22% fee reserve -> received coin is authoritative
-    done = {**raw, "status": "filled", "remain_rp": "0", "receive_btc": "0.00000776"}
-    assert parse_order(done, "btc_idr").filled_qty == D("0.00000776")
-    part = {**raw, "remain_rp": "5000", "receive_btc": "0.000004"}
-    assert parse_order(part, "btc_idr").filled_qty == D("0.000004")
+    assert st.status == "filled" and st.filled_qty == D("0.00000768")
+    assert st.filled_for(D("0.00000768")) == D("0.00000768")
 
 
 def test_open_orders_entries_without_status_are_open():

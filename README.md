@@ -70,6 +70,7 @@ Strategi intraday versi pertama (15m/1h/4h) gagal di backtest dan diganti — li
 | Order 10/jam, 40/hari | VETO bila tercapai |
 | Hanya limit order | market order hanya untuk emergency stop-loss exit, dengan batas slippage 1% |
 | Stop-loss wajib | buy tanpa SL, atau SL ≥ harga entry → VETO; tidak bisa dimatikan lewat config |
+| Stop-loss harus bisa dieksekusi | entry di-VETO bila nilai posisi di harga SL (− slippage darurat 1%) < 1,2 × minimum order Indodax (Rp 10.000) |
 | Cooldown 30 menit setelah SL | per pair |
 | Rekonsiliasi gagal | semua order di-VETO sampai rekonsiliasi |
 | Biaya | expected move (TP, atau target = entry + 4×ATR) harus ≥ 2× biaya round-trip (fee, pajak, kliring, spread, slippage) |
@@ -134,9 +135,11 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
   Indodax membatalkan semua order di pair whitelist. Gagal 3× → entry dihentikan + alert.
 - **Rekonsiliasi** tiap siklus — koin di exchange < ledger agent, atau order agent tak dikenal → semua
   order diblokir, PAUSED + alert, lanjut otomatis bila cocok lagi. Saldo IDR asli membatasi ukuran order.
-- Fee per fill di `/tapi` legacy tidak tersedia → diestimasi konservatif (taker/maker + pajak + kliring).
-- Validasi format respons order dengan `scripts/live_order_check.py --production` (order minimum,
-  Tes A tanpa biaya) sebelum live. Akun demo Indodax tidak tersedia untuk pengguna umum;
+- Fee per fill di `/tapi` legacy tidak tersedia (`fee`, `receive_btc`, `receive_idr` dilaporkan 0) →
+  fee diestimasi konservatif; qty buy terisi = qty yang dikirim × fraksi terisi (bukan `order_rp`, yang
+  termasuk cadangan fee).
+- Format respons order sudah divalidasi di akun asli dengan `scripts/live_order_check.py --production`
+  (Tes A & B, 2026-09-23). Akun demo Indodax tidak tersedia untuk pengguna umum;
   `config/settings.demo.yaml` hanya disimpan untuk bila akses demo tersedia di kemudian hari.
 - Keterbatasan: stop-loss dijalankan oleh agent (Indodax tidak punya stop order di API); saat agent mati,
   posisi tidak terlindungi stop-loss.

@@ -38,6 +38,7 @@ from agent.strategy.strategy import TradeProposal
 
 ZERO = Decimal(0)
 HUNDRED = Decimal(100)
+EXIT_MIN_MARGIN = Decimal("1.2")  # stop-loss exit value must be >= this x exchange minimum
 
 
 class Verdict(str, Enum):
@@ -312,6 +313,15 @@ class RiskManager:
         why = info.min_order_violation(price, qty)
         if why:
             return veto(f"below exchange minimum after sizing ({binding}): {why}")
+        # the stop-loss exit must stay sellable: Indodax rejects orders under min_quote AT THE ORDER
+        # PRICE, and the emergency exit sells the whole position at ~stop x (1 - max slippage)
+        if info.min_quote and p.stop_loss is not None:
+            held = ctx.position_qty.get(p.pair, ZERO)
+            exit_px = p.stop_loss * (1 - self._pct(L.emergency_exit_max_slippage_pct) / HUNDRED)
+            exit_val = (held + qty) * exit_px
+            if exit_val < info.min_quote * EXIT_MIN_MARGIN:
+                return veto(f"position too small to exit at its stop-loss: {exit_val:.0f} < "
+                            f"{EXIT_MIN_MARGIN} x exchange minimum {info.min_quote}")
         notional = qty * price
 
         # ---- liquidity on the final size

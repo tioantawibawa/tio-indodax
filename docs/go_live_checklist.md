@@ -15,6 +15,9 @@ Akun demo Indodax tidak tersedia untuk pengguna umum, jadi format respons order 
 akun asli dengan order sekecil mungkin. Script ini **tidak** memakai strategi dan **tidak** menyentuh
 posisi agent; order-nya berawalan `chk-` (bukan order agent).
 
+✅ **Selesai 2026-09-23** — Tes A dan Tes B lulus; temuan format respons sudah ditangani di kode
+(lihat `docs/indodax_api_notes.md` §9b). Ulangi hanya bila developer memintanya.
+
 1. [ ] Pastikan tidak ada order manual Anda di `btc_idr` (agar tidak tertukar saat membaca hasil).
 2. [ ] **Tes A — biaya nol:** limit buy 10% di bawah harga (tidak akan terisi) → dibaca ulang → dibatalkan.
    ```bash
@@ -22,18 +25,20 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
    ```
    Harus berakhir `ORDER CHECK PASSED`. Butuh saldo IDR ≥ ±Rp 11.000 (order ditahan sebentar lalu dibatalkan).
 3. [ ] Kirim seluruh output + isi file hasil ke developer:
-   `sudo bash -c 'cat /opt/indodax-agent/logs/order_check_*.json'` (tanpa key/secret).
-4. [ ] **Tes B — biaya ±Rp 70** (setelah developer mengonfirmasi hasil Tes A): beli jumlah minimum
+   `sudo bash -c 'ls -t /opt/indodax-agent/logs/order_check_*.json | head -1 | xargs cat'` (tanpa key/secret).
+4. [ ] **Tes B — biaya ±Rp 100** (setelah developer mengonfirmasi hasil Tes A): beli jumlah minimum
    (±Rp 10.000) lalu langsung jual kembali.
    ```bash
    sudo bash deploy/agent-run.sh scripts.live_order_check --production --fill
    ```
    Kirim output-nya juga. Batas keras script: Rp 20.000 per order.
 
-## C. Canary: live dengan modal sangat kecil
-- [ ] Untuk minggu pertama live, turunkan `agent_capital_idr` di `/opt/indodax-agent/config/settings.yaml`
-      (mis. `100000`) sehingga posisi maks ±Rp 10.000. Setelah seminggu tanpa anomali, naikkan ke
-      Rp 500.000. (Catatan: `install.sh` menimpa config dari repo — ubah juga di repo Anda atau minta developer.)
+## C. Canary: live dengan modal kecil
+- [ ] Minggu pertama live boleh memakai `agent_capital_idr` lebih kecil, **minimal Rp 250.000**.
+      Di bawah itu, posisi maks (10% modal) terlalu dekat dengan minimum order Indodax Rp 10.000:
+      risk manager menolak entry yang nilai jualnya di harga stop-loss < 1,2 × minimum (agar stop-loss
+      selalu bisa dieksekusi), sehingga agent hampir tidak akan pernah trading. Setelah seminggu tanpa
+      anomali, naikkan ke Rp 500.000. (`install.sh` menimpa config dari repo — minta developer mengubahnya.)
 
 ## D. Syarat sebelum MODE=live di akun asli
 - [ ] ≥ 14 hari paper trading tercatat (`/status` → "paper days tersimpan").
@@ -42,7 +47,7 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
 - [ ] Saldo IDR di akun ≥ modal agent (Rp 500.000). Agent **tidak** menyentuh saldo di luar modal ini.
 - [ ] **Tidak ada order manual** Anda di pair whitelist (btc_idr, eth_idr, sol_idr): Deadman Switch
       membatalkan SEMUA order terbuka di pair tersebut bila agent mati.
-- [ ] Mulai kecil: pertimbangkan `agent_capital_idr` lebih kecil (mis. Rp 200.000) di minggu pertama.
+- [ ] Mulai kecil: lihat bagian C (minimal Rp 250.000).
 
 ## E. Aktifkan live
 ```bash

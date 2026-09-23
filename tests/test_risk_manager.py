@@ -344,6 +344,19 @@ def test_resize_below_exchange_minimum_vetoed(rm):
     assert d.verdict == Verdict.VETO and "minimum" in d.reasons[0]
 
 
+def test_entry_vetoed_if_stop_loss_exit_would_be_below_exchange_minimum(rm):
+    # 0.000012 x 999M = Rp 11.988 meets the minimum now, but selling at the stop (979M) minus 1%
+    # emergency slippage is Rp 11.630 < 1.2 x Rp 10.000 -> the stop-loss could not be executed
+    d = rm.evaluate(buy(qty="0.000012"), ctx(), market_view())
+    assert d.verdict == Verdict.VETO and "exit at its stop-loss" in d.reasons[0]
+    assert rm.evaluate(buy(qty="0.000013"), ctx(), market_view()).approved   # Rp 12.600 at the stop
+
+
+def test_stop_loss_exit_minimum_counts_existing_position(rm):
+    c = with_position(ctx(), "btc_idr", "0.000005", "4995")
+    assert rm.evaluate(buy(qty="0.000012"), c, market_view()).approved
+
+
 def test_qty_rounded_to_exchange_step(rm):
     d = rm.evaluate(buy(qty="0.000099999999"), ctx(), market_view())
     assert d.qty == D("0.00009999")

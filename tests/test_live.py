@@ -127,6 +127,29 @@ async def test_partial_fill_accumulates_without_double_count_then_ttl_cancel(ex_
     assert ex.pending_buy_idr() == {}
 
 
+async def test_real_indodax_shapes_book_exact_coin_and_reconcile_clean(ex_env):
+    # real responses: filled buy has receive_btc=0 and fee-inflated order_rp -> book the submitted qty
+    db, pf, fx, ex = ex_env
+    fx.indodax_shapes = True
+    did, _ = await run(ex, db, buy(price="1506036000", qty="0.00000768", sl="1400000000"))
+    assert pf.positions["btc_idr"].qty == D("0.00000768")
+    assert db.get_order(ex.coid(did))["status"] == "FILLED"
+    assert (await reconcile(fx, db, "live", pf, ["btc_idr"], ex.is_ours)).ok
+    did, _ = await run(ex, db, sell(price="1497858000", qty="0.00000768"))
+    assert "btc_idr" not in pf.positions and db.get_order(ex.coid(did))["status"] == "FILLED"
+
+
+async def test_real_indodax_shapes_partial_buy_never_overbooks(ex_env):
+    db, pf, fx, ex = ex_env
+    fx.indodax_shapes, fx.fill_ratio = True, D("0.4")
+    did, _ = await run(ex, db, buy(price="1000000000", qty="0.0001"))
+    held = pf.positions["btc_idr"].qty
+    assert held <= fx.balances["btc"] and held >= D("0.0000399")
+    fx.fill_more(ex.coid(did), D("0.00006"))
+    await ex.check_resting({"btc_idr": market()}, NOW + timedelta(seconds=30))
+    assert pf.positions["btc_idr"].qty == D("0.0001") == fx.balances["btc"]
+
+
 async def test_emergency_exit_is_bounded_limit_and_records_stop(ex_env):
     db, pf, fx, ex = ex_env
     await run(ex, db, buy(price="1000000000", qty="0.0001"))

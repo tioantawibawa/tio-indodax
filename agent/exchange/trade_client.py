@@ -12,7 +12,7 @@ minimum-size orders (scripts/live_order_check.py, docs/go_live_checklist.md).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_FLOOR, Decimal
 from typing import Any
 
 import structlog
@@ -63,13 +63,37 @@ class OrderState:
     remaining_qty: Decimal
     status: str                  # normalised: open | filled | cancelled
     raw: dict
-    received_qty: Decimal | None = None  # buys: coin actually received (receive_<base>), authoritative
+    received_qty: Decimal | None = None  # buys: receive_<base> when > 0 (Indodax often reports 0)
 
     @property
     def filled_qty(self) -> Decimal:
-        if self.received_qty is not None:
-            return self.received_qty
+        """Raw estimate from order/remain fields. For IDR-denominated buys this is inflated by the
+        fee reserve — use ``filled_for`` with the submitted quantity to book fills."""
         return max(self.orig_qty - self.remaining_qty, ZERO)
+
+    @property
+    def filled_fraction(self) -> Decimal:
+        if self.orig_qty <= 0:
+            return ZERO
+        return min(max((self.orig_qty - self.remaining_qty) / self.orig_qty, ZERO), Decimal(1))
+
+    def filled_for(self, submitted_qty: Decimal, step: Decimal | None = None) -> Decimal:
+        """Cumulative filled coin for an order we submitted with ``submitted_qty``.
+
+        Verified on the real account: a fully filled buy of 0.00000768 BTC credited exactly
+        0.00000768 while getOrder reported receive_btc=0 and order_rp/price=0.0000076964
+        (fee reserve). So: filled -> submitted qty; partial -> fraction x submitted, rounded
+        down (never book more coin than the exchange holds); capped by receive_<base> if given.
+        """
+        if self.status == "filled":
+            filled = submitted_qty
+        else:
+            filled = submitted_qty * self.filled_fraction
+            if step:
+                filled = (filled / step).to_integral_value(rounding=ROUND_FLOOR) * step
+        if self.received_qty is not None and self.received_qty > 0:
+            filled = min(filled, self.received_qty)
+        return max(min(filled, submitted_qty), ZERO)
 
     @property
     def is_open(self) -> bool:
@@ -89,8 +113,9 @@ def _num(d: dict, *keys: str) -> Decimal | None:
 def parse_order(raw: dict, pair: str, default_status: str | None = None) -> OrderState:
     """Parse a legacy order. Verified on the real account (2026-09-23):
     - buy orders are IDR-denominated; ``order_rp``/``remain_rp`` INCLUDE the fee reserve
-      (order 10510.92 IDR -> order_rp 10534), so qty derived from them is slightly too high;
-      the coin actually received is ``receive_<base>`` and is used for fills.
+      (order 10510.92 IDR -> order_rp 10534), so qty derived from them is slightly too high.
+      ``receive_btc`` stays 0 even after a full fill, and ``fee``/``receive_idr`` are 0 too.
+      Fills are therefore booked with ``OrderState.filled_for(submitted_qty)``.
     - ``openOrders`` entries carry no ``status`` field (pass ``default_status="open"``).
     """
     base = base_asset(pair)
@@ -116,8 +141,8 @@ def parse_order(raw: dict, pair: str, default_status: str | None = None) -> Orde
         raise IndodaxResponseFormatError(f"order {raw.get('order_id')}: unknown status {status_raw!r}")
     side = str(raw.get("type", "")).lower()
     received = _num(raw, f"receive_{base}") if side == "buy" else None
-    if received is not None and received == 0 and status == "filled":
-        received = None  # a filled buy reporting 0 received is not trustworthy -> use order/remain
+    if received is not None and received <= 0:
+        received = None  # 0 is reported even for filled buys -> carries no information
     return OrderState(str(raw.get("order_id", "")), str(raw.get("client_order_id", "")), to_ticker_id(pair),
                       side, price, orig, remain if remain is not None else ZERO, status, raw, received)
 

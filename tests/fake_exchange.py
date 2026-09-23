@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from agent.exchange.errors import IndodaxAPIError, IndodaxNetworkError
 from agent.exchange.private_client import Balances, PermissionReport
-from agent.exchange.trade_client import OrderAck, OrderState
+from agent.exchange.trade_client import OrderAck, OrderState, parse_order
 
 D = Decimal
 
@@ -27,6 +27,9 @@ class FakeExchange:
         self.foreign_orders: dict[str, list[OrderState]] = {}
         self.withdraw = False
         self.seq = 100
+        # respond like the real legacy API (verified 2026-09-23): buys IDR-denominated with a
+        # ~0.22% fee reserve in order_rp/remain_rp, receive_btc always 0, trade ack reports no fill
+        self.indodax_shapes = False
 
     # --- trading
     async def place_limit(self, pair, side, price, qty, client_order_id):
@@ -47,6 +50,8 @@ class FakeExchange:
             self.balances["idr"] += filled * price
         if self.timeout_after_accept:
             raise IndodaxNetworkError("read timeout")
+        if self.indodax_shapes:
+            return OrderAck(o["order_id"], client_order_id, D(0), D(0), D(0))
         return OrderAck(o["order_id"], client_order_id, filled, filled * price, None)
 
     def fill_more(self, client_order_id, qty):
@@ -59,6 +64,19 @@ class FakeExchange:
             o["status"] = "filled"
 
     def _state(self, o) -> OrderState:
+        if self.indodax_shapes:
+            base = o["pair"].split("_")[0]
+            if o["side"] == "buy":
+                rp = lambda q: str((q * o["price"] * D("1.0022")).to_integral_value())  # noqa: E731
+                raw = {"order_id": o["order_id"], "client_order_id": o["coid"], "price": str(o["price"]),
+                       "type": "buy", "status": o["status"], "fee": 0, "order_rp": rp(o["qty"]),
+                       "remain_rp": rp(o["qty"] - o["filled"]), "receive_btc": 0}
+            else:
+                raw = {"order_id": o["order_id"], "client_order_id": o["coid"], "price": str(o["price"]),
+                       "type": "sell", "status": o["status"], "fee": 0, "receive_idr": 0,
+                       f"order_{base}": str(o["qty"]), f"remain_{base}": str(o["qty"] - o["filled"]),
+                       f"sold_{base}": str(o["filled"])}
+            return parse_order(raw, o["pair"])
         return OrderState(o["order_id"], o["coid"], o["pair"], o["side"], o["price"], o["qty"],
                           o["qty"] - o["filled"], o["status"], {})
 

@@ -143,9 +143,10 @@ async def main(argv=None) -> int:
                           "raw": ackb.raw})
             time.sleep(1)
             stb = await tc.get_order_by_coid(coid_b, args.pair)
-            rec("B.buy read", {"status": stb.status if stb else None, "filled": stb.filled_qty if stb else None,
+            rec("B.buy read", {"status": stb.status if stb else None,
+                               "filled": stb.filled_for(plan["b_qty"], info.qty_step) if stb else None,
                                "raw": stb.raw if stb else None})
-            got = stb.filled_qty if stb else ackb.filled_qty
+            got = stb.filled_for(plan["b_qty"], info.qty_step) if stb else ackb.filled_qty
             bal, _ = await tc.balances_legacy()
             base = args.pair.split("_")[0]
             sell_qty = info.round_qty(min(got, bal.free_of(base)))
