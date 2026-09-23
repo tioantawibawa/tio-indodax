@@ -18,7 +18,7 @@ from agent.config import Mode, env_file_permission_problem, load_secrets, load_s
 from agent.data.market_data import MarketDataService
 from agent.exchange.public_client import IndodaxPublicClient
 from agent.logging_setup import configure_logging
-from agent.reporting.telegram_bot import CommandRouter, NullNotifier, TelegramNotifier, build_application
+from agent.reporting.telegram_bot import CommandRouter, NullNotifier, TelegramLink, build_application
 from agent.runner import AgentRunner
 from agent.storage.db import Database
 
@@ -73,22 +73,18 @@ async def run(env_file: str = ".env", settings_file: str = "config/settings.yaml
         llm = LLMAnalyst(settings.llm, secrets.ANTHROPIC_API_KEY.get_secret_value())
 
     token, chat_id = secrets.TELEGRAM_BOT_TOKEN.get_secret_value(), secrets.TELEGRAM_CHAT_ID
-    app = None
+    link = None
     notifier = NullNotifier()
+    runner_holder: dict = {}
     if token and chat_id:
-        runner_holder: dict = {}
         router = CommandRouter(_Lazy(runner_holder), int(chat_id))
-        app = build_application(token, router)
-        notifier = TelegramNotifier(app.bot, int(chat_id))
+        link = TelegramLink(build_application(token, router), int(chat_id))
+        notifier = link.notifier
     else:
         log.warning("telegram_disabled", reason="TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not set")
 
     runner = AgentRunner(settings, db, md, mode="paper", notifier=notifier, llm=llm)
-    if app is not None:
-        runner_holder["runner"] = runner
-
-    from apscheduler.schedulers.asyncio import AsyncIOScheduler
-    from apscheduler.triggers.cron import CronTrigger
+    runner_holder["runner"] = runner
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -100,19 +96,11 @@ async def run(env_file: str = ".env", settings_file: str = "config/settings.yaml
     except Exception as e:  # noqa: BLE001
         offset = None
         db.record_error("startup", f"clock check failed: {type(e).__name__}")
-    if app is not None:
-        await app.initialize()
-        await app.start()
-        await app.updater.start_polling(drop_pending_updates=True)
+    if link is not None:
+        await link.ensure_started()
     await runner.startup(offset, await private_api_notes(secrets, settings))
 
-    hh, mm = settings.reporting.daily_report_time.split(":")
-    sched = AsyncIOScheduler(timezone=settings.reporting.timezone)
-    sched.add_job(runner.run_cycle, "interval", minutes=settings.cycle.interval_minutes,
-                  max_instances=1, coalesce=True, next_run_time=None)
-    sched.add_job(runner.check_clock_job, "interval", minutes=30, args=[public], max_instances=1, coalesce=True)
-    sched.add_job(runner.send_daily_report, CronTrigger(hour=int(hh), minute=int(mm),
-                                                        timezone=settings.reporting.timezone))
+    sched = build_scheduler(settings, runner, public, link)
     sched.start()
     await runner.run_cycle()          # first cycle immediately
     log.info("agent_running", mode="paper")
@@ -120,13 +108,30 @@ async def run(env_file: str = ".env", settings_file: str = "config/settings.yaml
 
     log.info("agent_stopping")
     sched.shutdown(wait=False)
-    if app is not None:
-        await app.updater.stop()
-        await app.stop()
-        await app.shutdown()
+    if link is not None:
+        await link.stop()
     await public.aclose()
     db.close()
     return 0
+
+
+def build_scheduler(settings, runner, public, link=None):
+    """Jobs: trading cycle, clock check, Telegram reconnect, daily report."""
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.cron import CronTrigger
+
+    tz = settings.reporting.timezone
+    hh, mm = settings.reporting.daily_report_time.split(":")
+    sched = AsyncIOScheduler(timezone=tz)
+    sched.add_job(runner.run_cycle, "interval", minutes=settings.cycle.interval_minutes,
+                  id="cycle", max_instances=1, coalesce=True)
+    sched.add_job(runner.check_clock_job, "interval", minutes=30, args=[public], id="clock",
+                  max_instances=1, coalesce=True)
+    if link is not None:
+        sched.add_job(link.ensure_started, "interval", minutes=5, id="telegram", max_instances=1, coalesce=True)
+    sched.add_job(runner.send_daily_report, CronTrigger(hour=int(hh), minute=int(mm), timezone=tz),
+                  id="daily_report")
+    return sched
 
 
 class _Lazy:

@@ -38,8 +38,9 @@ fi
 
 mkdir -p "$APP_DIR"
 # copy code (keeps data/, logs/ and .env of an existing install)
-rsync -a --delete --exclude '.git' --exclude '.venv' --exclude 'data/' --exclude 'logs/' \
-      --exclude '.env' --exclude 'reports/' "$SRC_DIR"/ "$APP_DIR"/
+# excludes are anchored with a leading '/' so they never match agent/data/
+rsync -a --delete --exclude '/.git' --exclude '/.venv' --exclude '/data/' --exclude '/logs/' \
+      --exclude '/.env' --exclude '/reports/' "$SRC_DIR"/ "$APP_DIR"/
 mkdir -p "$APP_DIR/data" "$APP_DIR/logs"
 
 if [ ! -d "$APP_DIR/.venv" ]; then

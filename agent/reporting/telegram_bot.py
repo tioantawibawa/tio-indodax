@@ -125,6 +125,59 @@ class CommandRouter:
         return "Perintah tidak dikenal.\n\n" + HELP
 
 
+class TelegramLink:
+    """Owns the Telegram application; a Telegram outage never stops trading.
+
+    ``notifier`` always works: while Telegram is down, messages are logged only.
+    ``ensure_started`` is called at startup and periodically; an invalid token is
+    reported once and not retried (restarting cannot fix a wrong token).
+    """
+
+    def __init__(self, app, chat_id: int):
+        self.app = app
+        self.connected = False
+        self.invalid_token = False
+        self._tg = TelegramNotifier(app.bot, chat_id)
+        link = self
+
+        class _Notifier:
+            async def send(self, text: str) -> None:
+                if link.connected:
+                    await link._tg.send(text)
+                else:
+                    log.info("telegram_offline_message", preview=text[:120])
+
+        self.notifier = _Notifier()
+
+    async def ensure_started(self) -> bool:
+        if self.connected or self.invalid_token:
+            return self.connected
+        from telegram.error import InvalidToken
+        try:
+            await self.app.initialize()
+            await self.app.start()
+            await self.app.updater.start_polling(drop_pending_updates=True)
+            self.connected = True
+            log.info("telegram_connected")
+        except InvalidToken:
+            self.invalid_token = True
+            log.error("telegram_invalid_token",
+                      hint="TELEGRAM_BOT_TOKEN ditolak Telegram — periksa token di .env lalu restart service")
+        except Exception as e:  # noqa: BLE001 - network etc.: retry later
+            log.warning("telegram_unavailable", error_type=type(e).__name__, error=str(e)[:200])
+        return self.connected
+
+    async def stop(self) -> None:
+        if not self.connected:
+            return
+        try:
+            await self.app.updater.stop()
+            await self.app.stop()
+            await self.app.shutdown()
+        except Exception as e:  # noqa: BLE001
+            log.warning("telegram_stop_failed", error=str(e)[:200])
+
+
 def build_application(token: str, router: CommandRouter):
     """python-telegram-bot Application wired to the router (polling)."""
     from telegram import Update

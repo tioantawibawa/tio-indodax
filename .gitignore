@@ -6,9 +6,9 @@ config/.env
 *.pem
 *.key
 
-# Runtime state
-data/
-logs/
+# Runtime state (anchored to the repo root: must NOT match agent/data/)
+/data/
+/logs/
 *.db
 *.db-journal
 *.sqlite*
@@ -27,4 +27,4 @@ htmlcov/
 dist/
 build/
 # large per-step equity curves stay local
-reports/**/equity.csv
+/reports/**/equity.csv
