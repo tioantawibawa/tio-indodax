@@ -40,6 +40,7 @@ async def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="data/history")
     ap.add_argument("--pairs", nargs="*", help="default: whitelist from settings.yaml")
     ap.add_argument("--timeframes", nargs="*", help="default: strategy timeframes")
+    ap.add_argument("--since", help="start date YYYY-MM-DD (overrides --months)")
     args = ap.parse_args(argv)
 
     s = load_settings()
@@ -49,6 +50,9 @@ async def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     now = int(time.time())
     start = now - int((args.months * 30 + WARMUP_DAYS) * 86400)
+    if args.since:
+        from datetime import datetime, timezone
+        start = int(datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc).timestamp())
 
     async with IndodaxPublicClient.from_settings(s.exchange) as c:
         raw = await c._get("/api/pairs")

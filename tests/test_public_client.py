@@ -97,8 +97,11 @@ async def test_ohlc_params_and_chunking(client):
         q = call.request.url.params
         assert int(q["to"]) - int(q["from"]) < 7 * 86400
     route.reset()
-    await client.ohlc("btc_idr", "1D", start, start + 200 * 86400)  # daily: 1000-candle chunks
+    await client.ohlc("btc_idr", "1D", start, start + 200 * 86400)  # daily: <=700-candle chunks
     assert route.call_count == 1
+    route.reset()
+    await client.ohlc("btc_idr", "1D", start, start + 1400 * 86400 - 1)
+    assert route.call_count == 2
 
 
 async def test_ohlc_rejects_unsupported_timeframe(client):

@@ -76,8 +76,9 @@ Catatan OHLC:
 - ⚠️ **Terverifikasi di API sungguhan (2026-09-23, tidak ada di dokumentasi):** untuk timeframe intraday
   (`1`, `15`, `30`, `60`, `240`) server hanya mengembalikan **maksimal 7 hari yang berakhir di `to`**,
   berapa pun `from`-nya (mis. minta 50 hari 1h → dapat 169 candle terakhir). Riwayat lama tetap ada bila
-  diminta per jendela ≤ 7 hari. `1D` tidak terkena batas ini. Klien memecah rentang: maks 1000 candle
-  dan maks 6 hari per request intraday, lalu menggabungkan hasil (dedupe by `Time`).
+  diminta per jendela ≤ 7 hari. Untuk `1D` batasnya **~730 candle (2 tahun)** yang berakhir di `to`.
+  Riwayat 1D tersedia sejak 2015-09 (BTC), 2017-08 (ETH), 2021-11 (SOL); candle harian mulai 00:00 UTC. Klien memecah rentang: maks 1000 candle
+  maks 6 hari per request intraday dan maks 700 candle untuk 1D, lalu menggabungkan hasil (dedupe by `Time`).
 - ✅ `Volume` pada candle = volume **koin** (base asset): Σ volume 1h selama 24 jam ≈ `vol_btc` ticker,
   dan Σ volume×close ≈ `vol_idr`.
 - ✅ Spread nyata (2026-09-23): btc_idr ~0,000%, eth_idr ~0,002%, sol_idr ~0,000% (1 tick); depth 150 level.

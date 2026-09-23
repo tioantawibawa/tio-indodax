@@ -43,9 +43,11 @@ log = structlog.get_logger(__name__)
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 OHLC_MAX_CANDLES_PER_REQUEST = 1000
-# Observed (undocumented): for intraday timeframes the server returns at most
-# the 7 days ending at `to`, whatever `from` is. Page in 6-day windows.
+# Observed (undocumented): the server returns at most the 7 days ending at
+# `to` for intraday timeframes, and at most ~730 candles for daily and above,
+# whatever `from` is. Page in windows safely inside those caps.
 OHLC_INTRADAY_MAX_SPAN_S = 6 * 86400
+OHLC_DAILY_MAX_CANDLES = 700
 
 
 class IndodaxPublicClient:
@@ -223,9 +225,9 @@ class IndodaxPublicClient:
     async def ohlc(self, pair: str, timeframe: str, start: int, end: int) -> list[Candle]:
         """Candles with open time in [start, end] (epoch seconds), ascending, deduplicated.
 
-        The range is split into chunks: at most 1000 candles per request and,
-        for intraday timeframes, at most 6 days (the server silently returns
-        only the last 7 days of a longer intraday window).
+        The range is split into chunks: at most 6 days per request for
+        intraday timeframes and at most 700 candles for daily+ (the server
+        silently returns only the last 7 days / ~730 candles of a longer window).
         """
         if timeframe not in TIMEFRAMES:
             raise ValueError(f"unsupported timeframe {timeframe!r}; valid: {list(TIMEFRAMES)}")
@@ -235,6 +237,8 @@ class IndodaxPublicClient:
         chunk = step * OHLC_MAX_CANDLES_PER_REQUEST
         if step < 86400:
             chunk = min(chunk, OHLC_INTRADAY_MAX_SPAN_S)
+        else:
+            chunk = min(chunk, step * OHLC_DAILY_MAX_CANDLES)
         symbol = to_symbol(pair)
         candles: dict[int, Candle] = {}
         cursor = start

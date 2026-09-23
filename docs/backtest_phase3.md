@@ -41,3 +41,33 @@ Tidak ada varian yang positif setelah biaya. Varian tidak di-tuning lebih jauh u
 3. **Exit take-profit sebagai limit order maker** (fee 0,1% alih-alih 0,2%).
 4. Tetapkan kriteria lolos sebelum uji: mis. PF > 1,3 dan return bersih > 0 di **setiap** sub-periode,
    serta drawdown < 15%. Kalau tidak tercapai, jangan lanjut ke live.
+
+---
+
+# Revisi Fase 3 — desain & kriteria ditetapkan SEBELUM uji (2026-09-23)
+
+Disetujui pemilik: poin 1–4 di atas.
+
+## Strategi `trend_follow` (long-only, candle harian 1D, 00:00 UTC)
+Parameter ditetapkan di depan (nilai klasik, tidak di-tuning ke data):
+- **Entry**: close harian > high tertinggi 20 hari sebelumnya (Donchian breakout) **dan** close > EMA100.
+  Order: limit di best ask (langsung terisi, fee taker) segera setelah candle harian close.
+- **Stop awal & trailing (Chandelier exit)**: SL = high tertinggi 22 hari − 3 × ATR(20).
+  SL hanya boleh naik, tidak pernah turun. Stop dicek tiap siklus 5 menit (live) / intrabar (backtest).
+- **Tanpa take-profit tetap** — posisi dibiarkan jalan sampai trailing stop kena.
+  (Karena tidak ada TP, poin 3 "TP sebagai maker" tidak berlaku; semua exit adalah stop.)
+- **Target untuk cek biaya**: entry + 4 × ATR(20) — hanya dipakai risk manager untuk aturan
+  "expected move ≥ 2× biaya", bukan untuk exit.
+- Ukuran: risiko 1% modal bila SL kena, lalu dibatasi hard limit (maks 10% per posisi).
+- Setup range reversion dihapus.
+
+## Periode & kriteria lolos
+Data: 2017-01 s/d 2026-09-23 (warm-up dari data sebelumnya). Pair masuk sejak listing (SOL 2021-11).
+Sub-periode: **2018–2019, 2020–2021, 2022–2023, 2024–2026-09**.
+
+Lolos hanya jika **semua** terpenuhi (asumsi spread 0,1%, slippage 0,1%, fee penuh):
+1. Profit factor keseluruhan > 1,3
+2. Return bersih > 0 di **setiap** sub-periode
+3. Max drawdown < 15%
+
+Jika tidak lolos: dilaporkan apa adanya, tidak lanjut ke live.
