@@ -73,8 +73,14 @@ Konversi di `agent/exchange/pairs.py`.
 Catatan OHLC:
 - ⚠️ **Tidak ada timeframe 5 menit.** Untuk siklus 5 menit, gunakan candle 15m/1h/4h (multi-timeframe)
   + ticker/orderbook live. Jika perlu 5m, bisa di-resample dari candle 1m.
-- ⚠️ Batas jumlah candle per request tidak didokumentasikan. Klien memecah rentang waktu menjadi
-  potongan (default 1000 candle per request) dan menggabungkan hasilnya (dedupe by `Time`).
+- ⚠️ **Terverifikasi di API sungguhan (2026-09-23, tidak ada di dokumentasi):** untuk timeframe intraday
+  (`1`, `15`, `30`, `60`, `240`) server hanya mengembalikan **maksimal 7 hari yang berakhir di `to`**,
+  berapa pun `from`-nya (mis. minta 50 hari 1h → dapat 169 candle terakhir). Riwayat lama tetap ada bila
+  diminta per jendela ≤ 7 hari. `1D` tidak terkena batas ini. Klien memecah rentang: maks 1000 candle
+  dan maks 6 hari per request intraday, lalu menggabungkan hasil (dedupe by `Time`).
+- ✅ `Volume` pada candle = volume **koin** (base asset): Σ volume 1h selama 24 jam ≈ `vol_btc` ticker,
+  dan Σ volume×close ≈ `vol_idr`.
+- ✅ Spread nyata (2026-09-23): btc_idr ~0,000%, eth_idr ~0,002%, sol_idr ~0,000% (1 tick); depth 150 level.
 - Field `Volume` berupa string, `Open/High/Low/Close` berupa number.
 
 ### Presisi & minimum order

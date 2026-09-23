@@ -89,6 +89,17 @@ async def test_ohlc_params_and_chunking(client):
     assert route.call_count == 3
     assert len(candles) == 3  # same fixture returned each time -> deduplicated
 
+    # intraday windows are capped at 6 days (server returns only the last 7 days otherwise)
+    route.reset()
+    await client.ohlc("btc_idr", "240", start, start + 30 * 86400 - 1)  # exactly 30 days
+    assert route.call_count == 5
+    for call in route.calls:
+        q = call.request.url.params
+        assert int(q["to"]) - int(q["from"]) < 7 * 86400
+    route.reset()
+    await client.ohlc("btc_idr", "1D", start, start + 200 * 86400)  # daily: 1000-candle chunks
+    assert route.call_count == 1
+
 
 async def test_ohlc_rejects_unsupported_timeframe(client):
     with pytest.raises(ValueError):
