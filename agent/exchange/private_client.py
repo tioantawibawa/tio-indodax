@@ -35,6 +35,9 @@ LEGACY_READ_METHODS = frozenset({
 # Probe only: withdrawFee returns fee info and moves no funds, but it requires the
 # key's withdraw permission -> a safe way to detect that permission on legacy keys.
 LEGACY_PROBE_METHODS = frozenset({"withdrawFee"})
+NON_IDEMPOTENT = frozenset({"trade"})
+# Never callable through any client in this codebase, whatever a subclass allows.
+LEGACY_FORBIDDEN = frozenset({"withdrawCoin", "createVoucher", "listDownline", "checkDownline"})
 V2_READ_PATHS = frozenset({
     "/api/v2/account", "/api/v2/openOrders", "/api/v2/order", "/api/v2/myTrades", "/api/v2/order/histories",
 })
@@ -124,21 +127,24 @@ class PrivateReadOnlyClient:
 
     # --------------------------------------------------------------- core
 
-    async def _retrying(self, name: str, send):
-        for attempt in range(self.max_retries + 1):
+    async def _retrying(self, name: str, send, retries: int | None = None):
+        retries = self.max_retries if retries is None else retries
+        for attempt in range(retries + 1):
             await self._limiter.acquire()
             try:
                 return await send()
             except httpx.TransportError as e:
                 log.warning("private_api_network_error", call=name, attempt=attempt, error=type(e).__name__)
-                if attempt >= self.max_retries:
+                if attempt >= retries:
                     raise IndodaxNetworkError(f"{name} failed: {type(e).__name__}") from e
                 await self._sleep(min(0.5 * 2**attempt, 8) * (0.5 + random.random() / 2))
         raise IndodaxNetworkError(name)  # pragma: no cover
 
+    LEGACY_ALLOWED: frozenset = LEGACY_READ_METHODS | LEGACY_PROBE_METHODS
+
     async def legacy(self, method: str, **params: Any) -> dict:
-        if method not in LEGACY_READ_METHODS | LEGACY_PROBE_METHODS:
-            raise ForbiddenOperationError(f"legacy method {method!r} is not read-only; refused")
+        if method in LEGACY_FORBIDDEN or method not in self.LEGACY_ALLOWED:
+            raise ForbiddenOperationError(f"legacy method {method!r} is not allowed for this client; refused")
 
         async def send():
             # timestamp regenerated per attempt so a retry is never outside recvWindow
@@ -148,7 +154,9 @@ class PrivateReadOnlyClient:
                        "Content-Type": "application/x-www-form-urlencoded"}
             return await self._http.post(self.tapi_url, content=body, headers=headers)
 
-        resp = await self._retrying(f"legacy:{method}", send)
+        # Never auto-retry an order submission: the first attempt may have reached the
+        # exchange. The executor resolves unknown outcomes via client_order_id instead.
+        resp = await self._retrying(f"legacy:{method}", send, retries=0 if method in NON_IDEMPOTENT else None)
         try:
             data = resp.json()
         except ValueError as e:

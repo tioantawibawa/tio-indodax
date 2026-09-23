@@ -63,14 +63,17 @@ class Portfolio:
         stop_loss: Decimal | None = None,
         take_profit: Decimal | None = None,
         reason: str = "",
+        strict: bool = True,
     ) -> FillResult:
+        """``strict=False`` is for fills that already happened on the exchange: the
+        ledger must follow reality even if its cash estimate is slightly off."""
         if qty <= 0 or price <= 0 or fee_idr < 0:
             raise ValueError("qty and price must be positive, fee non-negative")
         self.fees_paid += fee_idr
         pos = self.positions.get(pair)
         if side == "buy":
             cost = qty * price + fee_idr
-            if cost > self.cash_idr:
+            if cost > self.cash_idr and strict:
                 raise ValueError(f"buy of {cost} IDR exceeds agent cash {self.cash_idr}")
             self.cash_idr -= cost
             if pos is None:

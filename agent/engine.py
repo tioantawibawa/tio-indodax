@@ -133,10 +133,16 @@ class DecisionEngine:
             if dec.approved:
                 # Later proposals in this cycle must see this order's effect.
                 pend = dict(ctx.pending_buy_idr)
+                free = ctx.exchange_free_idr
                 if dec.proposal.side == "buy":
-                    pend[dec.proposal.pair] = pend.get(dec.proposal.pair, ZERO) + dec.qty * dec.price
+                    notional = dec.qty * dec.price
+                    pend[dec.proposal.pair] = pend.get(dec.proposal.pair, ZERO) + notional
+                    if free is not None:   # the exchange balance shrinks with every buy this cycle
+                        info = markets[dec.proposal.pair].info
+                        fee = self.risk._costs.leg_fee_pct(info, maker=False) / 100
+                        free = max(ZERO, free - notional * (1 + fee))
                 ctx = replace(
-                    ctx, pending_buy_idr=pend,
+                    ctx, pending_buy_idr=pend, exchange_free_idr=free,
                     orders_last_hour=ctx.orders_last_hour + (0 if dec.proposal.is_emergency_exit else 1),
                     orders_today=ctx.orders_today + (0 if dec.proposal.is_emergency_exit else 1),
                 )

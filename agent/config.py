@@ -33,6 +33,7 @@ class _Frozen(BaseModel):
 
 
 class ExchangeSettings(_Frozen):
+    environment: str = Field("production", pattern="^(production|demo)$")
     public_base_url: str = "https://indodax.com"
     tapi_url: str = "https://indodax.com/tapi"
     tapi_v2_base_url: str = "https://api.indodax.com"
@@ -43,6 +44,16 @@ class ExchangeSettings(_Frozen):
     backoff_max_s: float = Field(8, gt=0)
     recv_window_ms: int = Field(5000, gt=0, le=60000)
     max_clock_offset_ms: int = Field(500, gt=0)
+
+    @model_validator(mode="after")
+    def _environment_matches_urls(self) -> "ExchangeSettings":
+        urls = (self.public_base_url, self.tapi_url)
+        on_demo = all("demo-indodax.com" in u for u in urls)
+        if self.environment == "demo" and not on_demo:
+            raise ValueError("environment=demo requires demo-indodax.com URLs")
+        if self.environment == "production" and any("demo" in u for u in urls):
+            raise ValueError("environment=production must not point at a demo host")
+        return self
 
 
 class MarketSettings(_Frozen):
@@ -225,6 +236,7 @@ class Secrets(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore", frozen=True)
 
     MODE: Mode = Mode.PAPER
+    AGENT_SETTINGS: str = "config/settings.yaml"   # config/settings.demo.yaml for the demo account
     LIVE_CONFIRM: str = ""
     INDODAX_API_KEY: SecretStr = SecretStr("")
     INDODAX_API_SECRET: SecretStr = SecretStr("")

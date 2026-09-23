@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+import inspect
 import json
 import re
 
@@ -27,6 +28,8 @@ from agent.backtest.paper_broker import FillEvent, PaperBroker
 from agent.config import Settings
 from agent.data.market_data import PairMarket
 from agent.engine import DecisionEngine
+from agent.execution.executor import LiveExecutor
+from agent.execution.reconcile import reconcile
 from agent.portfolio.persistence import rebuild_portfolio, save_stops
 from agent.reporting.daily_report import FillLine, PositionLine, ReportData, build_daily_report, rp
 from agent.reporting.telegram_bot import Notifier, NullNotifier, esc
@@ -43,20 +46,34 @@ def _norm_reason(r: str) -> str:
     return re.sub(r"-?\d[\d.,:+\-T]*%?", "#", r)[:80]
 
 
+async def _aw(x):
+    """Await coroutines, pass plain values through (paper broker is sync, live executor async)."""
+    return await x if inspect.isawaitable(x) else x
+
+
 class AgentRunner:
     def __init__(self, settings: Settings, db: Database, market_data, mode: str = "paper",
                  notifier: Notifier | None = None, llm=None,
-                 now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
-        if mode != "paper":
-            raise ValueError("AgentRunner in Phase 4 supports paper mode only")
+                 now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+                 trade_client=None, deadman=None):
+        if mode not in ("paper", "live"):
+            raise ValueError(f"unsupported mode {mode!r}")
+        if mode == "live" and trade_client is None:
+            raise ValueError("live mode requires a trade client")
         self.s, self.db, self.md, self.mode = settings, db, market_data, mode
+        self.trade_client, self.deadman = trade_client, deadman
         self.notifier = notifier or NullNotifier()
         self.now = now
         self.tz = ZoneInfo(settings.reporting.timezone)
         self.capital = Decimal(str(settings.risk.agent_capital_idr))
         self.engine = DecisionEngine(settings, db, mode, llm=llm)
         self.pf = rebuild_portfolio(db, mode, self.capital)
-        self.broker = PaperBroker(db, self.pf, CostModel(settings.fees), mode)
+        if mode == "live":
+            self.broker = LiveExecutor(db, self.pf, trade_client, CostModel(settings.fees),
+                                       settings.risk.emergency_exit_max_slippage_pct, mode)
+        else:
+            self.broker = PaperBroker(db, self.pf, CostModel(settings.fees), mode)
+        self.last_recon = None
         self.started_at = now()
         self.consecutive_errors = 0
         self.last_markets: dict[str, PairMarket] = {}
@@ -105,7 +122,10 @@ class AgentRunner:
 
     async def check_clock_job(self, public_client) -> None:
         try:
-            note = await self.update_clock(await public_client.clock_offset_ms())
+            offset = await public_client.clock_offset_ms()
+            if self.trade_client is not None and offset is not None:
+                self.trade_client.clock.offset_ms = offset   # keep signed timestamps inside recvWindow
+            note = await self.update_clock(offset)
         except Exception as e:  # noqa: BLE001
             self.db.record_error("clock", f"clock check failed: {type(e).__name__}")
             return
@@ -118,7 +138,8 @@ class AgentRunner:
         if clock_note:
             notes.append(clock_note)
         L = self.s.risk
-        msg = [
+        banner = ["⚠️ <b>MODE LIVE — order NYATA di akun Indodax</b>"] if self.mode == "live" else []
+        msg = banner + [
             f"🔄 <b>Agent start</b> — mode <b>{self.mode.upper()}</b>, status <b>{self.status.value}</b>",
             f"Modal agent {rp(self.capital)} · kas {rp(self.pf.cash_idr)} · posisi {len(self.pf.positions)}",
             f"Limit: posisi ≤{L.max_position_pct}% · maks {L.max_open_positions} posisi · aset ≤{L.max_asset_exposure_pct}% · "
@@ -169,17 +190,21 @@ class AgentRunner:
         if missing:
             raise RuntimeError(f"no market data for open positions {missing}")
         self.last_markets = markets
-        fills = self.broker.check_resting(markets, now)
+        fills = await _aw(self.broker.check_resting(markets, now))
+        recon_ok, free_idr = True, None
+        if self.mode == "live":
+            recon_ok, free_idr = await self._live_checks()
         res = await self.engine.run_cycle(markets, self.pf, now, self.status,
-                                          reconciliation_ok=True, pending_buy_idr=self.broker.pending_buy_idr())
+                                          reconciliation_ok=recon_ok, pending_buy_idr=self.broker.pending_buy_idr(),
+                                          exchange_free_idr=free_idr)
         self.last_notes = res.notes
         self.last_features = {p: self.engine.features(m) for p, m in markets.items()}
         for row_id, d in res.approved:
-            fills += self.broker.execute(row_id, d, markets[d.proposal.pair], now)
+            fills += await _aw(self.broker.execute(row_id, d, markets[d.proposal.pair], now))
         save_stops(self.db, self.mode, self.pf)   # trailing stops raised by the engine
 
         if res.trigger_halt and self.status != AgentStatus.HALTED:
-            n = self.broker.cancel_all(now)
+            n = await _aw(self.broker.cancel_all(now))
             self._set_status(AgentStatus.HALTED, "max_drawdown")
             await self.notifier.send(
                 f"🛑 <b>KILL SWITCH</b>: drawdown ≥ {self.s.risk.max_drawdown_pct}% dari puncak. "
@@ -201,6 +226,32 @@ class AgentRunner:
                                          f"{f.qty} @ {rp(f.price)} · fee {rp(f.fee_idr)}{pnl}")
         self._book_day(now, markets)
         return fills
+
+    async def _auto_pause(self, reason: str, bad: bool, bad_msg: str, ok_msg: str) -> None:
+        """Pause entries while a condition is bad; lift only a pause we set for that reason."""
+        if bad and self.status == AgentStatus.RUNNING:
+            self._set_status(AgentStatus.PAUSED, reason)
+            await self.notifier.send(bad_msg)
+        elif not bad and self.status == AgentStatus.PAUSED and self.pause_reason == reason:
+            self._set_status(AgentStatus.RUNNING)
+            await self.notifier.send(ok_msg)
+
+    async def _live_checks(self) -> tuple[bool, Decimal | None]:
+        pairs = list(dict.fromkeys([*self.s.market.whitelist, *self.pf.positions]))
+        rec = await reconcile(self.trade_client, self.db, self.mode, self.pf, pairs, self.broker.is_ours)
+        self.last_recon = rec
+        if rec.issues:
+            self.db.record_error("reconcile", "; ".join(rec.issues)[:300])
+        await self._auto_pause(
+            "reconcile", not rec.ok,
+            "🚨 <b>Rekonsiliasi gagal</b> — semua order dihentikan:\n" + esc("\n".join(rec.issues[:5])),
+            "✅ Rekonsiliasi kembali cocok — agent lanjut.")
+        if self.deadman is not None:
+            await self._auto_pause(
+                "deadman", not self.deadman.healthy,
+                "⚠️ Deadman Switch tidak sehat — entry baru dihentikan.",
+                "✅ Deadman Switch sehat — entry dibuka kembali.")
+        return rec.ok, rec.exchange_free_idr
 
     def _marks(self, markets: dict[str, PairMarket]) -> dict[str, Decimal]:
         return {p: (markets[p].orderbook.best_bid or markets[p].ticker.last) for p in self.pf.positions
@@ -245,7 +296,7 @@ class AgentRunner:
         return f"▶️ Agent RUNNING (sebelumnya {st.value}).{note}"
 
     async def kill(self) -> str:
-        n = self.broker.cancel_all(self.now())
+        n = await _aw(self.broker.cancel_all(self.now()))
         self._set_status(AgentStatus.HALTED, "manual_kill")
         await self.notifier.send(f"🛑 <b>/kill</b>: {n} order dibatalkan, status HALTED. "
                                  "Posisi tetap dipegang dengan stop-loss-nya. /resume untuk melanjutkan.")

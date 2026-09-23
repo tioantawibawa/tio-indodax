@@ -1,13 +1,14 @@
+# DEMO ACCOUNT SETTINGS — select with AGENT_SETTINGS=config/settings.demo.yaml in .env
 # Non-secret configuration. Secrets live in .env (see .env.example).
 # Every value under `risk:` is a HARD LIMIT: loaded once at startup into an
 # immutable object; nothing in the agent (incl. the LLM) can change it at runtime.
 # To change a hard limit: edit this file and restart the service.
 
 exchange:
-  environment: "production"
-  public_base_url: "https://indodax.com"
-  tapi_url: "https://indodax.com/tapi"            # legacy private API (HMAC-SHA512)
-  tapi_v2_base_url: "https://api.indodax.com"     # Trade API 2.0 (HMAC-SHA256) — see notes §10 Q2
+  environment: "demo"                             # https://demo-indodax.com — play money, for testing execution
+  public_base_url: "https://demo-indodax.com"
+  tapi_url: "https://demo-indodax.com/tapi"       # legacy private API (HMAC-SHA512)
+  tapi_v2_base_url: "https://demo-indodax.com"
   public_rate_limit_per_min: 150                  # official limit is 180/min; keep headroom
   request_timeout_s: 10
   max_retries: 4
@@ -18,7 +19,7 @@ exchange:
 
 market:
   whitelist: ["btc_idr", "eth_idr", "sol_idr"]
-  min_volume_24h_idr: 1000000000                  # Rp 1 miliar — placeholder, please confirm
+  min_volume_24h_idr: 1                           # demo books are thin; this is a mechanics test only
   max_spread_pct: 0.3
   max_slippage_pct: 0.2
 
@@ -85,7 +86,7 @@ llm:                                              # enabled via LLM_ENABLED in .
   veto_confidence: 0.7
 
 storage:
-  db_path: "data/agent.db"
+  db_path: "data/agent-demo.db"                   # never mixed with the production journal
 
 logging:
   dir: "logs"

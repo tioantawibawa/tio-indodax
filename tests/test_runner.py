@@ -225,15 +225,16 @@ def test_report_builder_empty_day():
     assert "Rp 500.000" in t and "— tidak ada" in t
 
 
-async def test_main_refuses_live_mode(tmp_path, monkeypatch):
+async def test_main_refuses_live_with_world_readable_env(tmp_path, monkeypatch):
     from agent import main as m
-    for k in ("MODE", "LIVE_CONFIRM", "INDODAX_API_KEY", "INDODAX_API_SECRET"):
+    for k in ("MODE", "LIVE_CONFIRM", "INDODAX_API_KEY", "INDODAX_API_SECRET", "AGENT_SETTINGS"):
         monkeypatch.delenv(k, raising=False)
     env = tmp_path / ".env"
     env.write_text("MODE=live\nLIVE_CONFIRM=I_UNDERSTAND_THE_RISK\nINDODAX_API_KEY=k1234567\nINDODAX_API_SECRET=s1234567\n")
+    env.chmod(0o644)
     monkeypatch.chdir(tmp_path)
     import shutil
     from tests.helpers import ROOT
     (tmp_path / "config").mkdir()
     shutil.copy(ROOT / "config/settings.yaml", tmp_path / "config/settings.yaml")
-    assert await m.run(str(env)) == 2
+    assert await m.run(str(env)) == 3

@@ -4,7 +4,8 @@ Agent berjalan sebagai user Linux terpisah `indodax` di `/opt/indodax-agent`, le
 `Restart=always` dan isolasi (tidak bisa menulis di luar `data/` & `logs/`, tidak bisa membaca
 `/home`). Tidak ada port yang dibuka — Telegram memakai polling keluar. Firewall tidak disentuh.
 
-> Mode live **belum tersedia** (Fase 5). `MODE=live` akan ditolak saat start.
+> Mode live: ikuti [`docs/go_live_checklist.md`](../docs/go_live_checklist.md). Tanpa semua syarat
+> terpenuhi, `MODE=live` ditolak saat start dan Telegram menerima daftar alasannya.
 
 ## 0. Prasyarat
 - Python 3.11+ (`python3 --version`; Ubuntu 24.04 = 3.12 ✓, Ubuntu 22.04 = 3.10 ✗ → pakai

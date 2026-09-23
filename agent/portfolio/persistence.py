@@ -29,7 +29,7 @@ def rebuild_portfolio(db: Database, mode: str, capital_idr: Decimal) -> Portfoli
     rows = db._conn.execute("SELECT * FROM fills WHERE mode = ? ORDER BY ts, id", (mode,)).fetchall()
     for r in rows:
         pf.apply_fill(r["pair"], r["side"], Decimal(r["qty"]), Decimal(r["price"]), Decimal(r["fee_idr"]),
-                      datetime.fromisoformat(r["ts"]))
+                      datetime.fromisoformat(r["ts"]), strict=False)
     for pair, stop in (db.get_state(_stops_key(mode), {}) or {}).items():
         if pair in pf.positions:
             pf.raise_stop(pair, Decimal(stop))
