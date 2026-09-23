@@ -33,12 +33,14 @@ sudo -u indodax nano /opt/indodax-agent/.env
 - `TELEGRAM_CHAT_ID` — lihat langkah 3.
 
 ## 3. Cek sebelum start (semuanya read-only, tanpa order)
+Folder `/opt/indodax-agent` hanya bisa dibuka user `indodax` (disengaja). Jalankan dari folder repo
+Anda (`~/tio-indodax`) lewat helper yang menjalankan perintah sebagai user `indodax`:
 ```bash
-cd /opt/indodax-agent
+cd ~/tio-indodax
 # chat id: kirim /start ke bot Anda dulu, lalu
-sudo -u indodax .venv/bin/python -m scripts.telegram_chat_id      # salin ke TELEGRAM_CHAT_ID di .env
-sudo -u indodax .venv/bin/python -m scripts.smoke_public           # API publik + selisih jam
-sudo -u indodax .venv/bin/python -m scripts.check_private_api      # key: backend mana, izin withdraw, saldo IDR
+sudo bash deploy/agent-run.sh scripts.telegram_chat_id      # salin angkanya ke TELEGRAM_CHAT_ID di .env
+sudo bash deploy/agent-run.sh scripts.smoke_public           # API publik + selisih jam
+sudo bash deploy/agent-run.sh scripts.check_private_api      # key: backend mana, izin withdraw, saldo IDR
 ```
 `check_private_api` harus menunjukkan **withdraw mungkin: False** (atau None bila hanya legacy).
 
@@ -53,7 +55,7 @@ Telegram akan menerima pesan **"Agent start"** berisi mode & semua limit aktif.
 ```bash
 journalctl -u indodax-agent -f                 # live
 journalctl -u indodax-agent --since today
-sudo -u indodax tail -f /opt/indodax-agent/logs/agent.log   # JSON, rotasi harian (30 hari)
+sudo tail -f /opt/indodax-agent/logs/agent.log   # JSON, rotasi harian (30 hari)
 ```
 
 ## Update versi
