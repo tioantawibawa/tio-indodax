@@ -198,7 +198,7 @@ async def test_daily_report_has_every_section(env):
     md.books["btc_idr"] = book("btc_idr", bid="920000000", ask="921000000")
     clock.t += timedelta(minutes=5)
     await r.run_cycle()
-    db.record_error("exchange", "timeout <b>x</b>")
+    db.record_error("exchange", "timeout <b>x</b>", ts=clock.t)
     await r.send_daily_report()
     text = notes.messages[-1]
     for section in ("Laporan harian", "Mode <b>PAPER</b>", "Uptime", "Awal hari", "PnL realized",
