@@ -102,3 +102,24 @@ sub-periode; max drawdown 5,7% < 15%.
    memperbesar return *dan* drawdown — keputusan pemilik.
 2. **Edge melemah di periode terakhir** (2024–2026: PF 1,22, +1,8%/tahun). Perlu dipantau di paper trading.
 3. Backtest bukan jaminan. Spread/slippage historis adalah asumsi (nyata saat ini jauh lebih tipis).
+
+
+## Revisi pemilik 2026-10-01 — ukuran posisi varian B
+
+Pemilik meminta profil lebih agresif. Enam varian diuji dengan data dan kode yang sama (2018-01-01 s/d
+Sep 2026, spread 0,1% + slippage 0,1%; diulang dengan 0,2% + 0,2%):
+
+| Varian | Return | DD maks | Trade | PF |
+|---|---|---|---|---|
+| A awal (risiko 1%, posisi maks 10%) | +57,7% | 5,7% | 131 | 2,33 |
+| **B (risiko 2%, posisi maks 20%) — dipilih** | **+115,3%** | **8,3%** | 131 | 2,33 |
+| C (risiko 3%, posisi maks 30%) | +173,0% | 10,2% | 131 | 2,33 |
+| D breakout 10 hari + EMA50 | +74,0% | 6,6% | 177 | 2,28 |
+| E D + stop 2×ATR | +64,6% | 5,6% | 245 | 2,00 |
+| F D + ukuran B | +147,9% | 9,1% | 177 | 2,28 |
+
+Dengan biaya 2×: A +55,8%, B +111,6% (DD 8,6%), C +167,4%. B dan C hanya mengubah ukuran, sehingga sinyal
+dan trade identik dengan strategi yang sudah didaftarkan (tidak ada risiko overfitting baru). D/E/F mengubah
+parameter sinyal setelah melihat data, sehingga tidak dipakai. Pemilik memilih **B**:
+`risk.max_position_pct: 20`, `strategy.risk_per_trade_pct: 2.0`; limit lain tidak berubah (maks 3 posisi,
+exposure per aset 30%, rugi harian 3%, kill switch drawdown 15%).

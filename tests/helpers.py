@@ -24,7 +24,10 @@ D = Decimal
 def settings(**overrides) -> Settings:
     raw = yaml.safe_load((ROOT / "config/settings.yaml").read_text())
     raw["market"]["whitelist"] = ["btc_idr", "eth_idr", "sol_idr", "xrp_idr", "btc_usdt"]
-    raw["risk"]["agent_capital_idr"] = 1_000_000   # tests use a fixed baseline, independent of prod config
+    # tests use a fixed baseline, independent of the owner's production config
+    raw["risk"]["agent_capital_idr"] = 1_000_000
+    raw["risk"]["max_position_pct"] = 10
+    raw["strategy"]["risk_per_trade_pct"] = 1.0
     for section, values in overrides.items():
         raw[section].update(values)
     return Settings.model_validate(raw)

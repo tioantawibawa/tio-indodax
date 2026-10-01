@@ -35,7 +35,7 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
 
 ## C. Canary: live dengan modal kecil
 - [ ] Minggu pertama live boleh memakai `agent_capital_idr` lebih kecil, **minimal Rp 250.000**.
-      Di bawah itu, posisi maks (10% modal) terlalu dekat dengan minimum order Indodax Rp 10.000:
+      Di bawah itu, posisi maks (20% modal) terlalu dekat dengan minimum order Indodax Rp 10.000:
       risk manager menolak entry yang nilai jualnya di harga stop-loss < 1,2 × minimum (agar stop-loss
       selalu bisa dieksekusi), sehingga agent hampir tidak akan pernah trading. Setelah seminggu tanpa
       anomali, naikkan ke Rp 500.000. (`install.sh` menimpa config dari repo — minta developer mengubahnya.)

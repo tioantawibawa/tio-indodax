@@ -365,6 +365,16 @@ def test_qty_rounded_to_exchange_step(rm):
 # ------------------------------------------------------------ fuzz / invariants
 
 def test_invariants_hold_for_random_inputs(rm, s):
+    _fuzz(rm, s)
+
+
+def test_invariants_hold_with_owner_variant_b_limits():
+    # production since 2026-10-01: 20% max position (owner choice, variant B)
+    s = settings(risk={"max_position_pct": 20})
+    _fuzz(RiskManager(s.risk, s.market, s.fees), s)
+
+
+def _fuzz(rm, s):
     rng = random.Random(42)
     cap = D(str(s.risk.agent_capital_idr))
     seen = {"buy": 0, "sell": 0, "resize": 0, "emergency": 0}
@@ -415,7 +425,7 @@ def test_invariants_hold_for_random_inputs(rm, s):
             assert p.stop_loss is not None and p.stop_loss < d.price
             assert "btc_idr" not in c.last_stoploss_at or NOW - c.last_stoploss_at["btc_idr"] >= timedelta(minutes=30)
             pos_after = c.position_value_idr.get("btc_idr", D(0)) + notional
-            assert pos_after <= cap * D("0.10") + D("0.01")
+            assert pos_after <= cap * D(str(s.risk.max_position_pct)) / 100 + D("0.01")
             open_pairs = {k for k, q in c.position_qty.items() if q > 0} | set(c.pending_buy_idr)
             assert "btc_idr" in open_pairs or len(open_pairs) < 3
             assert notional <= c.cash_idr

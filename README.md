@@ -48,7 +48,7 @@ Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, 
    high tertinggi 22 hari − 3×ATR), **tidak pernah diturunkan**.
 4. **Entry** (`trend_follow`, long-only spot) — close harian > high tertinggi 20 hari sebelumnya **dan**
    close > EMA100 → limit buy di best ask. Stop awal = Chandelier. Tanpa take-profit tetap: posisi
-   berjalan sampai trailing stop kena. Ukuran = risiko 1% modal bila stop kena (lalu dibatasi hard limit).
+   berjalan sampai trailing stop kena. Ukuran = risiko 2% modal bila stop kena (lalu dibatasi hard limit).
 5. **LLM (opsional)** — hanya bisa menggeser confidence maks ±0,2 atau menahan proposal *buy*
    bila bearish ≥ 0,7. Tidak bisa membuat order, mengubah harga/qty/SL, atau menyentuh limit.
    Error/timeout → siklus lanjut tanpa LLM.
@@ -62,7 +62,7 @@ Strategi intraday versi pertama (15m/1h/4h) gagal di backtest dan diganti — li
 | Limit | Perilaku |
 |---|---|
 | Modal agent (`agent_capital_idr`) | total posisi + order pending ≤ modal; belanja ≤ kas ledger agent dan ≤ saldo IDR bebas di exchange |
-| Maks per posisi 10% | proposal lebih besar di-RESIZE; posisi penuh → VETO (termasuk order pending) |
+| Maks per posisi 20% (sejak 2026-10-01, varian B; awalnya 10%) | proposal lebih besar di-RESIZE; posisi penuh → VETO (termasuk order pending) |
 | Maks posisi terbuka 3 | pair baru ditolak bila sudah 3 (order pending dihitung) |
 | Maks exposure per aset 30% | dijumlah lintas market (mis. `btc_idr` + `btc_usdt`) |
 | Daily loss 3% modal | entry baru di-VETO + flag `trigger_daily_stop` (untuk alert & PAUSE) |
