@@ -33,12 +33,12 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
    ```
    Kirim output-nya juga. Batas keras script: Rp 20.000 per order.
 
-## C. Canary: live dengan modal kecil
-- [ ] Minggu pertama live boleh memakai `agent_capital_idr` lebih kecil, **minimal Rp 250.000**.
-      Di bawah itu, posisi maks (20% modal) terlalu dekat dengan minimum order Indodax Rp 10.000:
-      risk manager menolak entry yang nilai jualnya di harga stop-loss < 1,2 × minimum (agar stop-loss
-      selalu bisa dieksekusi), sehingga agent hampir tidak akan pernah trading. Setelah seminggu tanpa
-      anomali, naikkan ke Rp 500.000. (`install.sh` menimpa config dari repo — minta developer mengubahnya.)
+## C. Modal agent
+- [ ] Modal agent sekarang **Rp 300.000** (diubah pemilik 2026-10-04; posisi maks 20% = Rp 60.000,
+      risiko per trade 2% = Rp 6.000). Jangan turunkan di bawah **Rp 250.000**: posisi akan terlalu dekat
+      dengan minimum order Indodax Rp 10.000 (entry ditolak bila nilai jualnya di harga stop-loss
+      < 1,2 × minimum). Mengubah modal: minta developer (`install.sh` menimpa config dari repo); puncak
+      equity & awal hari disesuaikan otomatis, jadi perubahan modal tidak memicu kill switch.
 
 ## D. Syarat sebelum MODE=live di akun asli
 Pada 7 Oktober 2026 jam 09:00 WIB agent otomatis mengirim **Review go-live** ke Telegram (`/status` +
@@ -47,7 +47,7 @@ cek kesiapan). Kirim pesan itu dan laporan harian terakhir ke developer.
 - [ ] ≥ 14 hari paper trading tercatat (`/status` → "paper days tersimpan").
 - [ ] Laporan harian paper masuk setiap hari; tidak ada error berulang yang belum dijelaskan.
 - [ ] `timedatectl` → `System clock synchronized: yes`; `check_private_api` → clock offset OK.
-- [ ] Saldo IDR di akun ≥ modal agent (Rp 500.000). Agent **tidak** menyentuh saldo di luar modal ini.
+- [ ] Saldo IDR di akun ≥ modal agent (Rp 300.000). Agent **tidak** menyentuh saldo di luar modal ini.
 - [ ] **Tidak ada order manual** Anda di pair whitelist (btc_idr, eth_idr, sol_idr): Deadman Switch
       membatalkan SEMUA order terbuka di pair tersebut bila agent mati.
 - [ ] Mulai kecil: lihat bagian C (minimal Rp 250.000).

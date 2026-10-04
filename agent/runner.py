@@ -67,6 +67,7 @@ class AgentRunner:
         self.tz = ZoneInfo(settings.reporting.timezone)
         self.capital = Decimal(str(settings.risk.agent_capital_idr))
         self.engine = DecisionEngine(settings, db, mode, llm=llm)
+        self.capital_note = self._rebase_capital()
         self.pf = rebuild_portfolio(db, mode, self.capital)
         if mode == "live":
             self.broker = LiveExecutor(db, self.pf, trade_client, CostModel(settings.fees),
@@ -80,6 +81,32 @@ class AgentRunner:
         self.last_features: dict[str, dict[str, TimeframeFeatures]] = {}
         self.last_notes: dict[str, str] = {}
         self.last_clock_offset_ms: int | None = None
+
+    def _rebase_capital(self) -> str | None:
+        """When the owner changes ``agent_capital_idr``, shift the stored peak equity and today's
+        start equity by the same amount. Without this, lowering capital would read as a drawdown
+        (kill switch) and a daily loss; raising it would hide real ones. Returns a note if rebased."""
+        key = f"{self.mode}:capital"
+        stored = self.db.get_state(key)
+        old = Decimal(stored) if stored is not None else None
+        if old is None:
+            # databases from before capital was recorded: the agent's first (completed) day starts at
+            # equity == capital (no fills yet). Only trust a past day, never today's possibly-live row.
+            first = self.db.first_day(self.mode)
+            if first is not None and first[0] < self.local_date(self.now()):
+                old = first[1]
+        self.db.set_state(key, str(self.capital))
+        if old is None or old == self.capital:
+            return None
+        delta = self.capital - old
+        peak_key = f"{self.mode}:peak_equity"
+        peak = self.db.get_state(peak_key)
+        if peak is not None:
+            self.db.set_state(peak_key, str(max(Decimal(peak) + delta, ZERO)))
+        self.db.shift_daily_start_equity(self.local_date(self.now()), self.mode, delta)
+        log.warning("capital_rebased", old=str(old), new=str(self.capital))
+        return (f"Modal agent diubah {rp(old)} → {rp(self.capital)}: puncak equity dan equity awal hari "
+                f"disesuaikan {rp(delta)} (bukan rugi/untung).")
 
     # ------------------------------------------------------------ status
 
@@ -136,6 +163,8 @@ class AgentRunner:
 
     async def startup(self, clock_offset_ms: int | None = None, extra_notes: list[str] | None = None) -> None:
         notes = list(extra_notes or [])
+        if self.capital_note:
+            notes.append(self.capital_note)
         clock_note = await self.update_clock(clock_offset_ms)
         if clock_note:
             notes.append(clock_note)

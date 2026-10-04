@@ -278,3 +278,52 @@ async def test_go_live_review_waits_for_telegram(env):
     assert not await r.go_live_review()
     notes.available = True
     assert await r.go_live_review()
+
+
+async def test_lowering_capital_rebases_instead_of_tripping_kill_switch(env):
+    # the VPS case: DB from before capital was recorded, restart on a later day with an open position
+    make, db, md, clock, notes, signals = env
+    r1 = make()                                  # capital Rp 1.000.000 (test baseline)
+    await r1.run_cycle()                         # opens positions on 2026-09-23
+    db._conn.execute("DELETE FROM state WHERE key = 'paper:capital'")   # deployed before this feature
+    clock.t += timedelta(days=1)
+    await r1.run_cycle()                         # today's row exists (2026-09-24) before the restart
+    old_peak = D(db.get_state("paper:peak_equity"))
+    old_today = D(db.get_daily_pnl("2026-09-24", "paper")["start_equity"])
+    old_first = D(db.get_daily_pnl("2026-09-23", "paper")["start_equity"])
+    s2 = settings(market={"whitelist": PAIRS}, risk={"agent_capital_idr": 600_000})
+    r2 = AgentRunner(s2, db, md, "paper", notifier=notes, now=clock)
+    r2.engine.features = lambda m: signals[m.pair]
+    assert D(db.get_state("paper:peak_equity")) == old_peak - 400_000
+    assert D(db.get_daily_pnl("2026-09-24", "paper")["start_equity"]) == old_today - 400_000
+    assert D(db.get_daily_pnl("2026-09-23", "paper")["start_equity"]) == old_first   # history untouched
+    assert set(r2.pf.positions) == set(r1.pf.positions)            # positions kept
+    assert r2.pf.cash_idr == r1.pf.cash_idr - 400_000
+    await r2.startup()
+    assert "Modal agent diubah Rp 1.000.000 → Rp 600.000" in notes.messages[-1]
+    clock.t += timedelta(minutes=5)
+    await r2.run_cycle()
+    assert r2.status == AgentStatus.RUNNING                         # no kill switch, no daily stop
+    ctx = r2.engine.build_context(r2.pf, r2._marks(r2.last_markets), clock.t, r2.status, True)
+    assert r2.engine.risk.drawdown_pct(ctx) < 1 and r2.engine.risk.daily_loss_pct(ctx) < 1
+    r3 = AgentRunner(s2, db, md, "paper", notifier=notes, now=clock)  # restart: no second rebase
+    assert r3.capital_note is None
+
+
+async def test_capital_change_with_recorded_capital_same_day(env):
+    make, db, md, clock, notes, signals = env
+    r1 = make()
+    await r1.run_cycle()
+    assert D(db.get_state("paper:capital")) == 1_000_000
+    s2 = settings(market={"whitelist": PAIRS}, risk={"agent_capital_idr": 1_500_000})
+    r2 = AgentRunner(s2, db, md, "paper", notifier=notes, now=clock)
+    assert r2.capital_note and D(db.get_state("paper:peak_equity")) >= D(1_499_000)
+    assert D(db.get_daily_pnl("2026-09-23", "paper")["start_equity"]) == D(1_500_000)
+
+
+async def test_no_capital_inference_from_todays_row(env):
+    # a day-start above capital today is a real loss, never "old capital"
+    make, db, md, clock, notes, _ = env
+    db.upsert_daily_pnl("2026-09-23", "paper", start_equity=D(1_040_000))
+    r = make()
+    assert r.capital_note is None

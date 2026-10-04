@@ -35,7 +35,7 @@ fees:
   min_edge_multiple: 2.0                          # expected move must be >= 2x round-trip cost
 
 risk:
-  agent_capital_idr: 500000                       # confirmed by owner: Rp 500.000
+  agent_capital_idr: 300000                       # owner 2026-10-04 (was 500000; Rp 500.000 confirmed earlier)
   max_position_pct: 20                            # owner 2026-10-01: variant B (was 10)
   max_open_positions: 3
   max_asset_exposure_pct: 30

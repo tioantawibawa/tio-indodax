@@ -277,6 +277,20 @@ class Database:
                  _s(peak_equity)),
             )
 
+    def shift_daily_start_equity(self, date: str, mode: str, delta: Decimal) -> None:
+        """Rebase one day's start equity (used when the owner changes agent capital)."""
+        row = self.get_daily_pnl(date, mode)
+        if row is not None:
+            with self.tx() as c:
+                c.execute("UPDATE daily_pnl SET start_equity = ? WHERE date = ? AND mode = ?",
+                          (str(Decimal(row["start_equity"]) + delta), date, mode))
+
+    def first_day(self, mode: str) -> tuple[str, Decimal] | None:
+        """(date, start_equity) of the earliest recorded day."""
+        row = self._conn.execute("SELECT date, start_equity FROM daily_pnl WHERE mode = ? ORDER BY date LIMIT 1",
+                                 (mode,)).fetchone()
+        return (row["date"], Decimal(row["start_equity"])) if row else None
+
     def get_daily_pnl(self, date: str, mode: str) -> sqlite3.Row | None:
         return self._conn.execute("SELECT * FROM daily_pnl WHERE date = ? AND mode = ?",
                                   (date, mode)).fetchone()

@@ -61,7 +61,7 @@ Strategi intraday versi pertama (15m/1h/4h) gagal di backtest dan diganti — li
 
 | Limit | Perilaku |
 |---|---|
-| Modal agent (`agent_capital_idr`) | total posisi + order pending ≤ modal; belanja ≤ kas ledger agent dan ≤ saldo IDR bebas di exchange |
+| Modal agent (`agent_capital_idr`, Rp 300.000 sejak 2026-10-04) | total posisi + order pending ≤ modal; belanja ≤ kas ledger agent dan ≤ saldo IDR bebas di exchange |
 | Maks per posisi 20% (sejak 2026-10-01, varian B; awalnya 10%) | proposal lebih besar di-RESIZE; posisi penuh → VETO (termasuk order pending) |
 | Maks posisi terbuka 3 | pair baru ditolak bila sudah 3 (order pending dihitung) |
 | Maks exposure per aset 30% | dijumlah lintas market (mis. `btc_idr` + `btc_usdt`) |
