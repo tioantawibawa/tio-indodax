@@ -28,6 +28,7 @@ def settings(**overrides) -> Settings:
     raw["risk"]["agent_capital_idr"] = 1_000_000
     raw["risk"]["max_position_pct"] = 10
     raw["strategy"]["risk_per_trade_pct"] = 1.0
+    raw["live_gate"]["min_paper_days"] = 14
     for section, values in overrides.items():
         raw[section].update(values)
     return Settings.model_validate(raw)

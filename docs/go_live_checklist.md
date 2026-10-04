@@ -44,7 +44,7 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
 Pada 7 Oktober 2026 jam 09:00 WIB agent otomatis mengirim **Review go-live** ke Telegram (`/status` +
 cek kesiapan). Kirim pesan itu dan laporan harian terakhir ke developer.
 
-- [ ] ≥ 14 hari paper trading tercatat (`/status` → "paper days tersimpan").
+- [ ] ≥ 12 hari paper trading tercatat (diturunkan pemilik dari 14 pada 2026-10-04) (`/status` → "paper days tersimpan").
 - [ ] Laporan harian paper masuk setiap hari; tidak ada error berulang yang belum dijelaskan.
 - [ ] `timedatectl` → `System clock synchronized: yes`; `check_private_api` → clock offset OK.
 - [ ] Saldo IDR di akun ≥ modal agent (Rp 300.000). Agent **tidak** menyentuh saldo di luar modal ini.

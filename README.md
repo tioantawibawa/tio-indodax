@@ -5,7 +5,7 @@ limit order secara mandiri **di dalam batas risiko keras (hard limits) yang di-e
 dan mengirim laporan harian ke Telegram.
 
 > ⚠️ **Status: Fase 5 selesai (kode)** — eksekusi live dengan semua guard, Deadman Switch, rekonsiliasi,
-> preflight. Mode live baru bisa aktif setelah 14 hari paper + uji order minimum di akun asli:
+> preflight. Mode live baru bisa aktif setelah 12 hari paper (awalnya 14; diturunkan pemilik) + uji order minimum di akun asli:
 > ikuti [`docs/go_live_checklist.md`](docs/go_live_checklist.md). Deploy: [`deploy/README_DEPLOY.md`](deploy/README_DEPLOY.md).
 
 ## Risiko — baca dulu
@@ -106,7 +106,7 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
   start ke objek immutable; key tak dikenal / nilai tidak konsisten → agent menolak start.
 - `.env` — rahasia & mode. Salin dari `.env.example`, lalu `chmod 600 .env`. **Jangan pernah di-commit**
   (sudah di `.gitignore`).
-- `MODE=backtest|paper|live`. Live butuh `LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` dan ≥14 hari hasil paper
+- `MODE=backtest|paper|live`. Live butuh `LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` dan ≥12 hari hasil paper (`live_gate.min_paper_days`)
   di DB (gate kedua diimplementasi Fase 5).
 
 ## Paper trading & Telegram (Fase 4)
@@ -127,7 +127,7 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
 ## Mode live (Fase 5)
 
 - **Preflight** (`agent/execution/live_gate.py`) — live ditolak kecuali: `LIVE_CONFIRM`, `.env` chmod 600,
-  Telegram tersambung, ≥14 hari paper (tidak berlaku di akun demo), jam VPS ±500 ms, key terbukti **tanpa
+  Telegram tersambung, ≥12 hari paper (tidak berlaku di akun demo), jam VPS ±500 ms, key terbukti **tanpa
   izin withdraw**, Deadman Switch merespons, rekonsiliasi awal bersih.
 - **Eksekusi** (`agent/execution/executor.py`) — hanya limit order lewat `/tapi`. Anti order ganda:
   `client_order_id` unik per keputusan (salt per database), dicatat `PENDING_SUBMIT` sebelum dikirim,

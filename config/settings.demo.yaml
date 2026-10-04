@@ -53,7 +53,7 @@ deadman:
   countdown_ms: 120000
 
 live_gate:
-  min_paper_days: 14
+  min_paper_days: 12                              # owner 2026-10-04: go live after 12 paper days (was 14)
 
 reporting:
   timezone: "Asia/Jakarta"
