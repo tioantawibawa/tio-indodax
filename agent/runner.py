@@ -256,6 +256,9 @@ class AgentRunner:
                 await self.notifier.send(f"✅ <b>Order terisi</b> ({self.mode}) {esc(f.pair)} {f.side.upper()} "
                                          f"{f.qty} @ {rp(f.price)} · fee {rp(f.fee_idr)}{pnl}")
         self._book_day(now, markets)
+        log.info("cycle_done", mode=self.mode, status=self.status.value, pairs=len(markets),
+                 positions=len(self.pf.positions), decisions=len(res.decisions), fills=len(fills),
+                 reconcile_ok=recon_ok, notes={p: n[:60] for p, n in res.notes.items()})
         return fills
 
     async def _auto_pause(self, reason: str, bad: bool, bad_msg: str, ok_msg: str) -> None:

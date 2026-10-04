@@ -327,3 +327,13 @@ async def test_no_capital_inference_from_todays_row(env):
     db.upsert_daily_pnl("2026-09-23", "paper", start_equity=D(1_040_000))
     r = make()
     assert r.capital_note is None
+
+
+async def test_every_cycle_logs_a_heartbeat(env):
+    from structlog.testing import capture_logs
+    make, db, md, clock, notes, _ = env
+    r = make()
+    with capture_logs() as logs:
+        await r.run_cycle()
+    done = [e for e in logs if e["event"] == "cycle_done"]
+    assert len(done) == 1 and done[0]["mode"] == "paper" and done[0]["reconcile_ok"] is True
