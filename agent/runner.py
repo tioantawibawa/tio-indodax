@@ -380,7 +380,7 @@ class AgentRunner:
                              f"sinyal beli jika close harian > {rp(f.donchian_high)} (+{gap:.1f}%).")
             else:
                 parts.append(f"{name}: {regime}, {trend} EMA{self.s.strategy.trend_ema} — tidak ada entry.")
-        return " ".join(parts[:3]) if parts else "Data belum cukup untuk pandangan pasar."
+        return " ".join(parts) if parts else "Data belum cukup untuk pandangan pasar."
 
     def report_data(self, title: str = "Laporan harian") -> ReportData:
         now = self.now()

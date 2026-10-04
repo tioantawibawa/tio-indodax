@@ -123,3 +123,29 @@ dan trade identik dengan strategi yang sudah didaftarkan (tidak ada risiko overf
 parameter sinyal setelah melihat data, sehingga tidak dipakai. Pemilik memilih **B**:
 `risk.max_position_pct: 20`, `strategy.risk_per_trade_pct: 2.0`; limit lain tidak berubah (maks 3 posisi,
 exposure per aset 30%, rugi harian 3%, kill switch drawdown 15%).
+
+## Revisi pemilik 2026-10-04 — whitelist ditambah XRP, DOGE, ADA
+
+Kriteria ditetapkan **sebelum** backtest dilihat: (1) volume 24 jam ≥ Rp 1 miliar dan spread ≤ 0,3%
+(bukan stablecoin); (2) riwayat 1D ≥ 3 tahun; (3) backtest per koin sejak 2018 / listing: PF ≥ 1,3,
+return positif, ≥ 10 trade; (4) DD portofolio tetap ≤ 12%.
+
+Likuid (4 Okt 2026): xrp, doge, ada, sui, hype, mubarak, aster, pengu. Gugur di (2): sui (2,6 th),
+hype, aster, pengu, mubarak (< 1,5 th). Per koin (biaya 0,1% + 0,1%, ukuran varian B):
+
+| Koin | Return | DD | Trade | PF | Lolos |
+|---|---|---|---|---|---|
+| btc (sudah ada) | +54,9% | 5,4% | 51 | 3,13 | — |
+| eth (sudah ada) | +55,3% | 5,9% | 51 | 2,62 | — |
+| sol (sudah ada) | +4,5% | 8,8% | 29 | 1,12 | (di bawah kriteria; tetap, keputusan pemilik) |
+| **xrp** | +23,0% | 11,9% | 47 | 1,56 | ✅ |
+| **doge** | +52,0% | 10,7% | 27 | 3,64 | ✅ |
+| **ada** | +25,0% | 12,0% | 36 | 1,78 | ✅ |
+| sui (info) | +6,3% | 6,3% | 9 | 1,17 | ❌ |
+
+Portofolio (maks 3 posisi, modal Rp 300.000):
+
+| Whitelist | Return | DD | Trade | PF | Biaya 2× |
+|---|---|---|---|---|---|
+| btc, eth, sol | +114,7% | 8,3% | 131 | 2,33 | +111,0% |
+| **+ xrp, doge, ada** | **+175,3%** | **10,9%** | 192 | 2,24 | +173,8% |

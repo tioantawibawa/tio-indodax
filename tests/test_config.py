@@ -24,7 +24,7 @@ def raw() -> dict:
 
 def test_repo_settings_load():
     s = load_settings(ROOT / "config/settings.yaml")
-    assert s.market.whitelist == ("btc_idr", "eth_idr", "sol_idr")
+    assert s.market.whitelist == ("btc_idr", "eth_idr", "sol_idr", "xrp_idr", "doge_idr", "ada_idr")
     assert s.risk.max_open_positions == 3
     assert s.risk.require_stop_loss is True
 

@@ -36,6 +36,8 @@ data → analisa → strategy (TradeProposal) → risk_manager (APPROVE/RESIZE/V
 | `agent/backtest/` | backtester, paper broker (simulasi di orderbook live) | 3/4 |
 | `agent/runner.py`, `agent/main.py` | loop 5 menit, status RUNNING/PAUSED/HALTED, scheduler, shutdown rapi | 4 |
 
+Whitelist (sejak 2026-10-04): btc, eth, sol, xrp, doge, ada (`_idr`) — dasar pemilihan di `docs/backtest_phase3.md`.
+
 Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, ambiguitas):
 [`docs/indodax_api_notes.md`](docs/indodax_api_notes.md).
 

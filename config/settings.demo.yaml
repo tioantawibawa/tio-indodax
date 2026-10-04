@@ -18,7 +18,7 @@ exchange:
   max_clock_offset_ms: 500                        # refuse to trade if VPS clock drifts more than this
 
 market:
-  whitelist: ["btc_idr", "eth_idr", "sol_idr"]
+  whitelist: ["btc_idr", "eth_idr", "sol_idr", "xrp_idr", "doge_idr", "ada_idr"]   # +xrp/doge/ada 2026-10-04 (docs/backtest_phase3.md)
   min_volume_24h_idr: 1                           # demo books are thin; this is a mechanics test only
   max_spread_pct: 0.3
   max_slippage_pct: 0.2
