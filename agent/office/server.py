@@ -73,6 +73,8 @@ def make_handler(db_path: str, settings):
                 except Exception as e:  # noqa: BLE001
                     log.warning("office_state_failed", error=f"{type(e).__name__}: {e}"[:200])
                     self._send(503, json.dumps({"error": f"{type(e).__name__}"}).encode(), "application/json")
+            elif path == "/favicon.ico":
+                self._send(204, b"", "image/x-icon")
             else:
                 self._send(404, b"not found", "text/plain")
 

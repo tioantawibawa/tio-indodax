@@ -92,6 +92,59 @@ tr:last-child td { border-bottom: 0; }
 .empty { color: var(--muted); padding: 8px 0; }
 svg.spark { width: 100%; height: 90px; display: block; }
 footer { color: var(--muted); font-size: 12px; margin-top: 22px; }
+
+/* ---------- the office scene ---------- */
+.scene { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
+.scene svg { display: block; width: 100%; height: auto; }
+.s-wall { fill: #e9e4da; } .s-wall2 { fill: #ddd6c9; } .s-floor { fill: #cdb79a; } .s-floorline { stroke: #bba486; stroke-width: 2; }
+.s-skirt { fill: #b9a184; } .s-frame { fill: #f7f4ee; stroke: #9a8f80; stroke-width: 3; }
+.s-desktop { fill: #a77b52; } .s-deskfront { fill: #8d6440; } .s-plate { fill: #f7f1e6; } .s-platetext { fill: #4a3a28; font: 600 13px system-ui, sans-serif; }
+.s-chair { fill: #3d4555; } .s-lid { fill: #c9ced8; stroke: #9aa1ad; stroke-width: 2; } .s-skin { fill: #f1c7a1; }
+.s-tv { fill: #1b1f27; } .s-tvtext { fill: #e9edf5; font: 600 15px system-ui, sans-serif; } .s-tvsmall { fill: #9fb0c8; font: 500 12px system-ui, sans-serif; }
+.s-board { fill: #fbfbf8; stroke: #9aa1ad; stroke-width: 3; } .s-boardtext { fill: #2a3240; font: 600 13px system-ui, sans-serif; }
+.s-sign { fill: #2e6bd8; } .s-signtext { fill: #fff; font: 700 15px system-ui, sans-serif; letter-spacing: .08em; }
+.s-shadow { fill: rgba(0,0,0,.12); }
+@media (prefers-color-scheme: dark) {
+  .s-wall { fill: #2a2f3a; } .s-wall2 { fill: #232832; } .s-floor { fill: #3a3128; } .s-floorline { stroke: #30281f; }
+  .s-skirt { fill: #2d261f; } .s-frame { fill: #1d2230; stroke: #4a5160; } .s-board { fill: #e9ebef; }
+  .s-desktop { fill: #7a5838; } .s-deskfront { fill: #634529; } .s-chair { fill: #1c2029; }
+}
+.emp .logo { fill: var(--grey); transition: fill .3s; }
+.emp[data-s=working] .logo { fill: var(--green); filter: drop-shadow(0 0 5px var(--green)); }
+.emp[data-s=idle] .logo { fill: var(--blue); }
+.emp[data-s=warn] .logo { fill: var(--amber); filter: drop-shadow(0 0 5px var(--amber)); }
+.emp[data-s=down] .logo { fill: var(--red); filter: drop-shadow(0 0 6px var(--red)); }
+.emp .arm, .emp .head, .emp .mug, .emp .alarm, .emp .zz { transform-box: fill-box; transform-origin: center; }
+.emp[data-s=working] .armL { animation: typeA .42s ease-in-out infinite; }
+.emp[data-s=working] .armR { animation: typeA .42s ease-in-out .21s infinite; }
+.emp[data-s=idle] .head { animation: bob 3.2s ease-in-out infinite; }
+.emp .mug, .emp .alarm, .emp .warnmark, .emp .offsign, .emp .zz, .emp .eyes-closed { display: none; }
+.emp[data-s=idle] .mug { display: inline; animation: sip 4s ease-in-out infinite; }
+.emp[data-s=down] .alarm { display: inline; animation: blink 1s steps(2) infinite; }
+.emp[data-s=warn] .warnmark { display: inline; animation: bob 1.4s ease-in-out infinite; }
+.emp[data-s=off] .person { display: none; } .emp[data-s=off] .offsign { display: inline; }
+.emp[data-s=off] .lid { opacity: .55; }
+.emp .badge { stroke: var(--panel); stroke-width: 3; fill: var(--grey); }
+.emp[data-s=working] .badge { fill: var(--green); } .emp[data-s=idle] .badge { fill: var(--blue); }
+.emp[data-s=warn] .badge { fill: var(--amber); } .emp[data-s=down] .badge { fill: var(--red); }
+@keyframes typeA { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes sip { 0%,70%,100% { transform: translate(0,0) rotate(0); } 80%,90% { transform: translate(18px,-38px) rotate(-25deg); } }
+@keyframes blink { 0% { opacity: 1; } 100% { opacity: .15; } }
+@media (prefers-reduced-motion: reduce) { .emp * { animation: none !important; } }
+.bubble { position: absolute; transform: translate(-50%, -100%); width: 25%; max-width: 270px; background: var(--panel);
+  color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 7px 10px; font-size: 12px; line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0,0,0,.12); pointer-events: auto; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; background: inherit;
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: translateX(-50%) rotate(45deg); }
+.bubble b { display: block; font-size: 12px; } .bubble .st { font-size: 10px; font-weight: 700; letter-spacing: .05em; margin-left: 4px; }
+.bubble .tx { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); }
+.bubble[data-s=working] .st { color: var(--green); } .bubble[data-s=idle] .st { color: var(--blue); }
+.bubble[data-s=warn] { border-color: var(--amber); } .bubble[data-s=warn] .st { color: var(--amber); }
+.bubble[data-s=down] { border-color: var(--red); } .bubble[data-s=down] .st { color: var(--red); }
+.bubble[data-s=off] { opacity: .7; } .bubble[data-s=off] .st { color: var(--muted); }
+@media (max-width: 760px) { .bubble { display: none; } }
+details.tasks { margin-top: 10px; } details.tasks summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 0; }
 </style>
 </head>
 <body>
@@ -104,7 +157,10 @@ footer { color: var(--muted); font-size: 12px; margin-top: 22px; }
   <div class="banner" id="banner"></div>
 
   <section><h2>Ringkasan</h2><div class="kpis" id="kpis"></div></section>
-  <section><h2>Lantai kantor — siapa mengerjakan apa</h2><div class="floor" id="floor"></div></section>
+  <section><h2>Kantor — karyawan sedang mengerjakan apa</h2>
+    <div class="scene" id="scene"></div>
+    <details class="tasks" id="tasks"><summary>Daftar tugas karyawan (detail)</summary><div class="floor" id="floor"></div></details>
+  </section>
 
   <section class="cols">
     <div><h2>Radar sinyal — jarak ke breakout</h2><div class="card radar" id="radar"></div></div>
@@ -153,6 +209,129 @@ function kpi(label, value, sub, cls = "", meter = null) {
     m.append(i); k.append(m); }
   return k;
 }
+
+// ---------- the office scene (static drawing; live data only via textContent/attributes) ----------
+const STAFF = {
+  market:   {name: "Dika",  title: "Pengamat Pasar",  shirt: "#3b82c4", hair: "#2b2118", style: 0, prop: "📡", x: 210, y: 400},
+  analyst:  {name: "Sinta", title: "Analis Strategi", shirt: "#8b5cc7", hair: "#1d1612", style: 1, prop: "📊", x: 600, y: 400},
+  risk:     {name: "Bima",  title: "Manajer Risiko",  shirt: "#2f8f5b", hair: "#3a2a1c", style: 2, prop: "🛡️", x: 990, y: 400},
+  executor: {name: "Raka",  title: "Eksekutor",       shirt: "#d0743c", hair: "#16120e", style: 0, prop: "⚡", x: 210, y: 680},
+  deadman:  {name: "Wati",  title: "Penjaga Deadman", shirt: "#c4466b", hair: "#2a1d14", style: 1, prop: "⏱️", x: 600, y: 680},
+  reporter: {name: "Lala",  title: "Pelapor",         shirt: "#2a9fa8", hair: "#4a3020", style: 1, prop: "📨", x: 990, y: 680},
+};
+const HAIR = [
+  'M-21,-88 Q-22,-110 0,-110 Q22,-110 21,-88 Q14,-100 0,-100 Q-14,-100 -21,-88Z',
+  'M-23,-80 Q-26,-112 0,-112 Q26,-112 23,-80 L23,-62 Q19,-74 16,-92 Q0,-100 -16,-92 Q-19,-74 -23,-62Z',
+  'M-21,-90 Q-18,-108 0,-109 Q18,-108 21,-90 Q10,-97 -2,-96 Q-14,-96 -21,-90Z',
+];
+function employeeSVG(key, p) {
+  return `<g class="emp" id="emp-${key}" data-s="idle" transform="translate(${p.x},${p.y})">
+    <ellipse class="s-shadow" cx="0" cy="78" rx="110" ry="10"/>
+    <rect class="s-chair" x="-40" y="-122" width="80" height="104" rx="16"/>
+    <g class="person">
+      <g class="head">
+        <rect class="s-skin" x="-7" y="-70" width="14" height="12" rx="3"/>
+        <circle class="s-skin" cx="0" cy="-86" r="21"/>
+        <path d="${HAIR[p.style]}" fill="${p.hair}"/>
+        <circle cx="-7" cy="-86" r="2.6" fill="#2a2018"/><circle cx="7" cy="-86" r="2.6" fill="#2a2018"/>
+        <path d="M-6,-76 Q0,-72 6,-76" stroke="#a0603a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </g>
+      <rect x="-31" y="-62" width="62" height="60" rx="18" fill="${p.shirt}"/>
+      <g class="arm armL"><rect x="-44" y="-52" width="15" height="46" rx="7.5" fill="${p.shirt}"/><circle class="s-skin" cx="-36" cy="-6" r="7"/></g>
+      <g class="arm armR"><rect x="29" y="-52" width="15" height="46" rx="7.5" fill="${p.shirt}"/><circle class="s-skin" cx="36" cy="-6" r="7"/></g>
+      <text class="mug" x="-74" y="-8" font-size="24">☕</text>
+      <text class="warnmark" x="20" y="-112" font-size="26">❗</text>
+    </g>
+    <text class="offsign" x="0" y="-62" text-anchor="middle" font-size="13" font-weight="700" fill="#9aa1ad">TIDAK BERTUGAS</text>
+    <rect class="s-desktop" x="-96" y="-4" width="192" height="14" rx="4"/>
+    <g class="lid"><rect class="s-lid" x="-36" y="-48" width="72" height="46" rx="5"/><circle class="logo" cx="0" cy="-25" r="7"/></g>
+    <text x="62" y="-8" font-size="22">${p.prop}</text>
+    <text class="alarm" x="-86" y="-10" font-size="24">🚨</text>
+    <rect class="s-deskfront" x="-90" y="10" width="180" height="62" rx="4"/>
+    <rect class="s-plate" x="-78" y="26" width="156" height="24" rx="5"/>
+    <text class="s-platetext" x="0" y="43" text-anchor="middle">${p.title}</text>
+    <circle class="badge" cx="24" cy="-104" r="7"/>
+  </g>`;
+}
+function buildScene() {
+  const floorLines = Array.from({length: 13}, (_, i) =>
+    `<line class="s-floorline" x1="${i * 100}" y1="250" x2="${i * 100 - 180}" y2="780"/>`).join("") +
+    [340, 470, 620].map(y => `<line class="s-floorline" x1="0" y1="${y}" x2="1200" y2="${y}"/>`).join("");
+  const svg = `<svg viewBox="0 0 1200 780" role="img" aria-label="Kantor agent: enam karyawan di meja masing-masing">
+    <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop id="sky1" offset="0" stop-color="#8ec5f2"/><stop id="sky2" offset="1" stop-color="#d9efff"/></linearGradient></defs>
+    <rect class="s-wall" x="0" y="0" width="1200" height="250"/>
+    <rect class="s-wall2" x="0" y="0" width="1200" height="22"/>
+    <rect class="s-floor" x="0" y="250" width="1200" height="530"/>${floorLines}
+    <rect class="s-skirt" x="0" y="244" width="1200" height="10"/>
+    <g transform="translate(40,48)"><rect class="s-frame" width="200" height="150" rx="6"/><rect x="10" y="10" width="180" height="130" fill="url(#sky)"/>
+      <circle id="sun" cx="140" cy="45" r="16" fill="#ffd166"/><line x1="100" y1="10" x2="100" y2="140" stroke="#9a8f80" stroke-width="4"/>
+      <line x1="10" y1="75" x2="190" y2="75" stroke="#9a8f80" stroke-width="4"/></g>
+    <g transform="translate(330,40)"><rect class="s-sign" width="250" height="40" rx="8"/><text class="s-signtext" x="125" y="26" text-anchor="middle">INDODAX AGENT OFFICE</text></g>
+    <g transform="translate(330,96)"><rect class="s-tv" width="250" height="126" rx="8"/>
+      <text class="s-tvsmall" x="16" y="26">LAYAR STATUS</text>
+      <text class="s-tvtext" id="tv1" x="16" y="54">—</text><text class="s-tvtext" id="tv2" x="16" y="80">—</text>
+      <text class="s-tvsmall" id="tv3" x="16" y="106">—</text></g>
+    <g transform="translate(630,40)"><circle class="s-frame" cx="40" cy="40" r="38"/>
+      <line id="hh" x1="40" y1="40" x2="40" y2="20" stroke="#2a3240" stroke-width="5" stroke-linecap="round"/>
+      <line id="mh" x1="40" y1="40" x2="40" y2="11" stroke="#2a3240" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="40" cy="40" r="3.5" fill="#d92d20"/><text class="s-tvsmall" x="40" y="96" text-anchor="middle" fill="#7a7266">WIB</text></g>
+    <g transform="translate(760,36)"><rect class="s-board" width="300" height="184" rx="6"/>
+      <text class="s-boardtext" x="16" y="28">📋 Radar sinyal (jarak ke breakout)</text>
+      <g id="board"></g></g>
+    <g transform="translate(1110,120)"><rect x="-20" y="80" width="40" height="44" rx="6" fill="#b5694a"/>
+      <ellipse cx="0" cy="62" rx="34" ry="30" fill="#3f8f4f"/><ellipse cx="-16" cy="40" rx="18" ry="24" fill="#4aa35c"/><ellipse cx="16" cy="44" rx="16" ry="22" fill="#358046"/></g>
+    ${["market", "analyst", "risk"].map(k => employeeSVG(k, STAFF[k])).join("")}
+    ${["executor", "deadman", "reporter"].map(k => employeeSVG(k, STAFF[k])).join("")}
+  </svg>`;
+  const scene = $("scene");
+  scene.innerHTML = svg;   // constants only — no data from the agent in this markup
+  for (const [k, p] of Object.entries(STAFF)) {
+    const b = el("div", {class: "bubble", id: "bub-" + k, "data-s": "idle"},
+      el("b", {}, p.name + " · " + p.title, el("span", {class: "st"}, "")), el("span", {class: "tx"}, ""));
+    b.style.left = (p.x / 1200 * 100) + "%"; b.style.top = ((p.y - 132) / 780 * 100) + "%";
+    scene.append(b);
+  }
+  if (window.matchMedia("(max-width: 760px)").matches) $("tasks").open = true;
+}
+function updateScene(d, label) {
+  const by = Object.fromEntries(d.desks.map(k => [k.key, k]));
+  for (const k of Object.keys(STAFF)) {
+    const desk = by[k]; if (!desk) continue;
+    $("emp-" + k).setAttribute("data-s", desk.state);
+    const b = $("bub-" + k); b.setAttribute("data-s", desk.state);
+    b.querySelector(".st").textContent = label[desk.state] || desk.state;
+    b.querySelector(".tx").textContent = desk.task;
+    b.title = desk.task + (desk.detail ? "\n" + desk.detail : "");
+  }
+  const K = d.kpi;
+  $("tv1").textContent = d.mode.toUpperCase() + " · " + d.status;
+  $("tv2").textContent = "Equity " + rp(K.equity);
+  $("tv3").textContent = "PnL hari ini " + rp(K.day_pnl) + " · posisi " + K.positions + "/" + K.max_positions;
+  const board = $("board"); board.replaceChildren();
+  const ns = "http://www.w3.org/2000/svg";
+  const items = d.radar.slice().sort((a, b) => (a.held - b.held) || ((a.gap_pct ?? 99) - (b.gap_pct ?? 99))).slice(0, 6);
+  items.forEach((r, i) => {
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("class", "s-boardtext"); t.setAttribute("x", "16"); t.setAttribute("y", String(56 + i * 22));
+    const sym = r.pair.split("_")[0].toUpperCase();
+    t.textContent = sym + "  " + (r.held ? "dipegang ✓" : r.gap_pct == null ? "—" : r.above_ema === false ? "di bawah EMA"
+      : r.gap_pct <= 0 ? "BREAKOUT!" : "+" + r.gap_pct.toFixed(1).replace(".", ",") + "%");
+    board.append(t);
+  });
+}
+function tickClock() {
+  const now = new Date(), wib = new Date(now.getTime() + (now.getTimezoneOffset() + 420) * 60000);
+  const h = wib.getHours(), m = wib.getMinutes();
+  $("hh") && $("hh").setAttribute("transform", `rotate(${(h % 12) * 30 + m / 2} 40 40)`);
+  $("mh") && $("mh").setAttribute("transform", `rotate(${m * 6} 40 40)`);
+  const night = h < 6 || h >= 18, dusk = h === 17 || h === 6;
+  if ($("sky1")) {
+    $("sky1").setAttribute("stop-color", night ? "#0f1a3a" : dusk ? "#f29e6b" : "#8ec5f2");
+    $("sky2").setAttribute("stop-color", night ? "#27355e" : dusk ? "#ffd7a8" : "#d9efff");
+    $("sun").setAttribute("fill", night ? "#f4f1de" : "#ffd166");
+  }
+}
+
 function render(d) {
   const K = d.kpi, L = d.limits;
   $("mode").textContent = d.mode.toUpperCase(); $("mode").className = "pill " + d.mode;
@@ -177,6 +356,7 @@ function render(d) {
   );
 
   const label = {working: "BEKERJA", idle: "SIAGA", warn: "PERHATIAN", down: "MASALAH", off: "NONAKTIF"};
+  updateScene(d, label);
   $("floor").replaceChildren(...d.desks.map(k => el("div", {class: "desk", "data-s": k.state},
     el("div", {class: "av"}, k.icon),
     el("div", {class: "nm"}, el("span", {class: "lamp"}), k.name, el("span", {class: "state"}, label[k.state] || k.state)),
@@ -243,6 +423,7 @@ async function tick() {
     b.textContent = "⚠️ Dashboard tidak bisa membaca data (" + e.message + "). Office service berjalan?";
   }
 }
+buildScene(); tickClock(); setInterval(tickClock, 30000);
 tick(); setInterval(tick, 15000);
 </script>
 </body>
