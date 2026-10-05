@@ -34,8 +34,8 @@ posisi agent; order-nya berawalan `chk-` (bukan order agent).
    Kirim output-nya juga. Batas keras script: Rp 20.000 per order.
 
 ## C. Modal agent
-- [ ] Modal agent sekarang **Rp 300.000** (diubah pemilik 2026-10-04; posisi maks 20% = Rp 60.000,
-      risiko per trade 2% = Rp 6.000). Jangan turunkan di bawah **Rp 250.000**: posisi akan terlalu dekat
+- [ ] Modal agent sekarang **Rp 300.000** (diubah pemilik 2026-10-04; posisi maks 10% = Rp 30.000,
+      risiko per trade 1% = Rp 3.000). Jangan turunkan di bawah **Rp 250.000**: posisi akan terlalu dekat
       dengan minimum order Indodax Rp 10.000 (entry ditolak bila nilai jualnya di harga stop-loss
       < 1,2 × minimum). Mengubah modal: minta developer (`install.sh` menimpa config dari repo); puncak
       equity & awal hari disesuaikan otomatis, jadi perubahan modal tidak memicu kill switch.

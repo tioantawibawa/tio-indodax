@@ -190,3 +190,9 @@ Temuan sampingan — strategi harian bila dimulai 2023-02-01 dengan modal Rp 300
 | 3 koin, 2% / 20% | +26,4% | 13,8% | 74 | 1,47 |
 | 6 koin, 1% / 10% | +10,6% | 9,7% | 96 | 1,27 |
 | 3 koin, 1% / 10% | +13,2% | 7,9% | 74 | 1,47 |
+
+## Keputusan pemilik 2026-10-05 — kembali ke risiko 1% / posisi maks 10%, 6 koin
+
+Konfigurasi live: whitelist 6 koin, `risk_per_trade_pct: 1.0`, `max_position_pct: 10`, modal Rp 300.000.
+Backtest dengan config ini: sejak 2018 +105,7% (DD 6,3%, 184 trade, PF 2,61); sejak 2023-02 +10,6%
+(DD 9,7%, 96 trade, PF 1,27). Varian B (2%/20%) dibatalkan karena menyentuh kill switch pada uji 2023+.
