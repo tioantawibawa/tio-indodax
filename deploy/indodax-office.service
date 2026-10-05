@@ -1,0 +1,34 @@
+[Unit]
+Description=Indodax Agent Office (read-only monitoring dashboard, loopback only)
+After=indodax-agent.service
+
+[Service]
+Type=simple
+User=indodax
+Group=indodax
+WorkingDirectory=/opt/indodax-agent
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/indodax-agent/.venv/bin/python -m agent.office --host 127.0.0.1 --port 8787
+Restart=always
+RestartSec=10
+
+# read-only dashboard: no secrets, no internet, loopback only
+InaccessiblePaths=/opt/indodax-agent/.env
+IPAddressDeny=any
+IPAddressAllow=localhost
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# SQLite needs the -shm file of the WAL database; the office opens the DB with mode=ro
+ReadWritePaths=/opt/indodax-agent/data
+MemoryMax=200M
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target

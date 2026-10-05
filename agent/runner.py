@@ -256,10 +256,47 @@ class AgentRunner:
                 await self.notifier.send(f"✅ <b>Order terisi</b> ({self.mode}) {esc(f.pair)} {f.side.upper()} "
                                          f"{f.qty} @ {rp(f.price)} · fee {rp(f.fee_idr)}{pnl}")
         self._book_day(now, markets)
+        self._office_heartbeat(now, markets, res, fills, recon_ok, free_idr)
         log.info("cycle_done", mode=self.mode, status=self.status.value, pairs=len(markets),
                  positions=len(self.pf.positions), decisions=len(res.decisions), fills=len(fills),
                  reconcile_ok=recon_ok, notes={p: n[:60] for p, n in res.notes.items()})
         return fills
+
+    def _office_heartbeat(self, now, markets, res, fills, recon_ok, free_idr) -> None:
+        """Snapshot for the read-only Agent Office dashboard (agent/office). Never raises."""
+        try:
+            tf = self.s.strategy.timeframes[0]
+            marks = self._marks(markets)
+            pairs = {}
+            for p in self.s.market.whitelist:
+                f = (self.last_features.get(p) or {}).get(tf)
+                m = markets.get(p)
+                d = {"note": res.notes.get(p, ""), "held": p in self.pf.positions}
+                if f is not None and f.close == f.close:
+                    level = f.donchian_high if f.donchian_high == f.donchian_high else None
+                    d.update(close=f.close, breakout=level, ema=f.ema_trend if f.ema_trend == f.ema_trend else None,
+                             gap_pct=(level / f.close - 1) * 100 if level else None, regime=f.regime.value,
+                             above_ema=bool(f.close > f.ema_trend) if f.ema_trend == f.ema_trend else None)
+                if m is not None:
+                    d.update(bid=str(m.orderbook.best_bid), ask=str(m.orderbook.best_ask))
+                pairs[p] = d
+            dm = self.deadman
+            self.db.set_state("office:heartbeat", {
+                "ts": now.isoformat(), "mode": self.mode, "status": self.status.value,
+                "pause_reason": self.pause_reason, "started_at": self.started_at.isoformat(),
+                "interval_min": self.s.cycle.interval_minutes, "capital": str(self.capital),
+                "cash": str(self.pf.cash_idr),
+                "equity": str(self.pf.equity(marks)) if len(marks) == len(self.pf.positions) else None,
+                "decisions": len(res.decisions), "fills": len(fills), "reconcile_ok": recon_ok,
+                "exchange_free_idr": str(free_idr) if free_idr is not None else None,
+                "clock_offset_ms": self.last_clock_offset_ms,
+                "telegram": getattr(self.notifier, "available", None),
+                "deadman": None if dm is None else {"healthy": dm.healthy, "failures": dm.failures,
+                                                    "last_ok_at": dm.last_ok_at},
+                "pairs": pairs,
+            })
+        except Exception as e:  # noqa: BLE001 - monitoring must never break trading
+            log.warning("office_heartbeat_failed", error=f"{type(e).__name__}: {e}"[:200])
 
     async def _auto_pause(self, reason: str, bad: bool, bad_msg: str, ok_msg: str) -> None:
         """Pause entries while a condition is bad; lift only a pause we set for that reason."""
@@ -472,4 +509,5 @@ class AgentRunner:
 
     async def send_daily_report(self) -> None:
         await self.notifier.send(build_daily_report(self.report_data()))
+        self.db.set_state("office:last_report", self.now().isoformat())
 

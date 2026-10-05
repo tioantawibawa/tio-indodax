@@ -149,6 +149,11 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
 - Keterbatasan: stop-loss dijalankan oleh agent (Indodax tidak punya stop order di API); saat agent mati,
   posisi tidak terlindungi stop-loss.
 
+## Agent Office (pemantauan)
+
+`python -m agent.office` — dashboard read-only di `127.0.0.1:8787` (systemd: `indodax-office`). Lihat
+`deploy/README_DEPLOY.md` § Agent Office untuk akses lewat SSH tunnel.
+
 ## Menjalankan (dev)
 
 ```bash

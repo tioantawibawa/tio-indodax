@@ -8,6 +8,8 @@ then stops new entries) and alert once; recovery is announced.
 
 from __future__ import annotations
 
+import time
+
 import structlog
 
 from agent.exchange.trade_client import LiveTradeClient
@@ -23,6 +25,7 @@ class DeadmanSwitch:
         self.notifier, self.fail_threshold = notifier, fail_threshold
         self.failures = 0
         self.last_ok = False
+        self.last_ok_at: float | None = None   # epoch seconds of the last accepted heartbeat
 
     @property
     def healthy(self) -> bool:
@@ -44,4 +47,5 @@ class DeadmanSwitch:
             await self.notifier.send("✅ Deadman Switch pulih — entry dibuka kembali.")
         self.failures = 0
         self.last_ok = True
+        self.last_ok_at = time.time()
         return True

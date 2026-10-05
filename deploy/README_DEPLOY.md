@@ -73,6 +73,24 @@ otomatis saat restart — tidak ada order ganda.
 2. Server: `sudo systemctl stop indodax-agent` (dan `disable` agar tidak start saat reboot).
 3. Paling akhir: hapus/nonaktifkan API key di https://indodax.com/trade_api.
 
+## Agent Office (dashboard pemantauan)
+Dashboard web read-only yang menampilkan tiap bagian agent sebagai "pegawai" di mejanya (pengamat pasar,
+analis strategi, manajer risiko, eksekutor, penjaga Deadman, pelapor) beserta equity, posisi, radar sinyal,
+keputusan, transaksi, dan error. Proses terpisah: tidak membaca `.env`, membuka database **read-only**,
+tidak bisa mengakses internet, dan hanya mendengarkan di `127.0.0.1:8787` (tidak ada port dibuka).
+```bash
+sudo systemctl enable --now indodax-office
+sudo systemctl status indodax-office --no-pager | head -5
+```
+Buka dari laptop lewat SSH tunnel (ganti `<IP-VPS>`):
+```bash
+ssh -L 8787:127.0.0.1:8787 ubuntu@<IP-VPS>
+```
+![Agent Office](../docs/img/agent_office.png)
+
+lalu buka **http://localhost:8787** di browser laptop selama sesi SSH itu terbuka. Data diperbarui tiap
+15 detik; agent menulis heartbeat tiap siklus (5 menit). Kendali tetap lewat Telegram.
+
 ## Perintah Telegram
 `/status`, `/positions`, `/report`, `/pause`, `/resume`, `/kill CONFIRM`. Laporan harian otomatis
 pukul 21:00 WIB. Bot hanya merespons `TELEGRAM_CHAT_ID` Anda.

@@ -58,6 +58,7 @@ chmod 600 "$APP_DIR/.env"
 chmod 750 "$APP_DIR"
 
 install -m 644 "$SRC_DIR/deploy/indodax-agent.service" /etc/systemd/system/indodax-agent.service
+install -m 644 "$SRC_DIR/deploy/indodax-office.service" /etc/systemd/system/indodax-office.service
 systemctl daemon-reload
 
 echo
@@ -65,3 +66,4 @@ echo "Time sync status (must say 'System clock synchronized: yes'):"
 timedatectl 2>/dev/null | grep -Ei 'synchronized|NTP service' || echo "  timedatectl not available"
 echo
 echo "Installed. Next steps: see deploy/README_DEPLOY.md (edit .env, checks, then systemctl enable --now)."
+echo "Agent Office (optional dashboard): sudo systemctl enable --now indodax-office  (see README_DEPLOY.md)"
