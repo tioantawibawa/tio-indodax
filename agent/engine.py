@@ -152,7 +152,7 @@ class DecisionEngine:
         # 1) exits first — reducing risk takes priority over adding it
         for pair, pos in list(portfolio.positions.items()):
             m = markets[pair]
-            prop = self.strategy.propose_exit(pos, m.info, m.orderbook, feats[pair])
+            prop = self.strategy.propose_exit(pos, m.info, m.orderbook, feats[pair], now)
             if prop is not None:
                 record(self.risk.evaluate(prop, ctx, MarketView(m.info, m.ticker, m.orderbook)))
 

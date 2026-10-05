@@ -149,3 +149,44 @@ Portofolio (maks 3 posisi, modal Rp 300.000):
 |---|---|---|---|---|---|
 | btc, eth, sol | +114,7% | 8,3% | 131 | 2,33 | +111,0% |
 | **+ xrp, doge, ada** | **+175,3%** | **10,9%** | 192 | 2,24 | +173,8% |
+
+## Permintaan pemilik 2026-10-05 — strategi short-term (didaftarkan SEBELUM diuji)
+
+Data: candle 1h 2023-01-01 s/d sekarang, 6 pair whitelist (4h = resample dari 1h). Modal Rp 300.000,
+ukuran varian B, maks 3 posisi, semua hard limit & cek biaya risk manager tetap. Kandidat:
+
+| ID | TF | Gaya | Entry | Stop | TP | Time stop |
+|---|---|---|---|---|---|---|
+| A | 1h | st_breakout | close > high 24 bar, > EMA200 | 1,5×ATR | 3×ATR | 48 bar (2 hari) |
+| B | 1h | st_breakout + trailing | close > high 24 bar, > EMA200 | Chandelier 22/3 | — | 72 bar (3 hari) |
+| C | 1h | st_pullback | RSI14 < 30, > EMA200 | 2×ATR | 2×ATR | 24 bar (1 hari) |
+| D | 1h | st_pullback | RSI14 < 25, > EMA200 | 2,5×ATR | 1,5×ATR | 12 bar |
+| E | 4h | st_breakout | close > high 12 bar, > EMA100 | 1,5×ATR | 3×ATR | 18 bar (3 hari) |
+| F | 4h | st_pullback | RSI14 < 35, > EMA100 | 2×ATR | 2,5×ATR | 12 bar (2 hari) |
+
+Kriteria lolos (semua harus terpenuhi): PF ≥ 1,3 setelah fee; return positif di setiap tahun
+(2023, 2024, 2025, 2026); tetap positif dengan biaya 2× (spread 0,2% + slippage 0,2%); ≥ 30 trade.
+Bila beberapa lolos: pilih Sharpe tertinggi. Bila tidak ada yang lolos: strategi live TIDAK diganti.
+
+### Hasil (2023-02-01 s/d 2026-10-05, 1h; kill switch 15% menghentikan backtest bila tersentuh)
+
+| ID | Return | DD | Trade | PF | Biaya 2× | Per tahun 23/24/25/26 | Lolos |
+|---|---|---|---|---|---|---|---|
+| A | −15,2% | 15,6% | 126 | 0,53 | −14,7% | −15,2 / kill switch | ❌ |
+| B | −13,5% | 15,0% | 137 | 0,56 | −13,7% | −13,5 / kill switch | ❌ |
+| C | +3,1% | 7,8% | 87 | 1,16 | +2,0% | +2,1 / +7,0 / −3,3 / −2,4 | ❌ (PF, tahun negatif) |
+| D | −1,0% | 3,1% | 9 | 0,62 | −0,5% | — | ❌ (trade < 30) |
+| E | −14,0% | 15,5% | 99 | 0,61 | −13,6% | −14,0 / kill switch | ❌ |
+| F | −3,5% | 6,8% | 40 | 0,78 | −4,8% | −0,3 / −3,1 / −1,5 / +1,3 | ❌ |
+
+**Tidak ada yang lolos → strategi live tidak diganti.** Kode gaya `st_breakout` / `st_pullback` + time
+stop tetap tersedia (default `style: trend_follow`) untuk pengujian berikutnya.
+
+Temuan sampingan — strategi harian bila dimulai 2023-02-01 dengan modal Rp 300.000 (kondisi live sekarang):
+
+| Konfigurasi | Return | DD | Trade | PF |
+|---|---|---|---|---|
+| 6 koin, risiko 2% / posisi 20% (live) | +2,5% | **15,4% (kill switch 2024)** | 54 | 1,05 |
+| 3 koin, 2% / 20% | +26,4% | 13,8% | 74 | 1,47 |
+| 6 koin, 1% / 10% | +10,6% | 9,7% | 96 | 1,27 |
+| 3 koin, 1% / 10% | +13,2% | 7,9% | 74 | 1,47 |

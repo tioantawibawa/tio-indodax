@@ -10,7 +10,7 @@ from agent.analysis.regime import Regime
 from agent.analysis.signals import TimeframeFeatures, compute_features
 from agent.portfolio.portfolio import Position
 from agent.strategy.strategy import Strategy
-from tests.helpers import book, pair_info, settings
+from tests.helpers import NOW, book, pair_info, settings
 
 
 def feat(tf="1D", regime=Regime.TRENDING_UP, **kw) -> TimeframeFeatures:
@@ -114,3 +114,48 @@ def test_trailing_stop_only_moves_up(strat):
     assert up == D("950000000")
     assert strat.trail_stop(pos(stop_loss=D("960000000")), {"1D": feat(chandelier_stop=0.95e9)}, pair_info()) is None
     assert strat.trail_stop(pos(), {"1D": feat(chandelier_stop=float("nan"))}, pair_info()) is None
+
+
+# ------------------------------------------------------------ short-term styles (2026-10-05)
+
+def st_strat(**kw):
+    base = settings().strategy.model_copy(update={"timeframes": ("60",), "trailing": False, **kw})
+    return Strategy(base, D(1_000_000))
+
+
+def test_st_breakout_entry_has_atr_stop_and_fixed_tp():
+    s = st_strat(style="st_breakout", stop_atr_mult=1.5, tp_atr_mult=3.0)
+    p, note = s.propose_entry("btc_idr", pair_info(), book(), {"60": feat(tf="60", atr=1e7)})
+    assert p is not None, note
+    assert p.stop_loss == D("1000000000") - D("15000000") and p.take_profit == D("1000000000") + D("30000000")
+    assert p.target == p.take_profit and p.setup == "st_breakout"
+
+
+def test_st_pullback_needs_low_rsi_above_trend():
+    s = st_strat(style="st_pullback", rsi_entry=30, tp_atr_mult=2.0)
+    assert s.propose_entry("btc_idr", pair_info(), book(), {"60": feat(tf="60", rsi=45)})[0] is None
+    p, _ = s.propose_entry("btc_idr", pair_info(), book(), {"60": feat(tf="60", rsi=25)})
+    assert p is not None and p.setup == "st_pullback"
+    below = feat(tf="60", rsi=20, close=0.85e9)          # under EMA trend: never buy the dip
+    assert s.propose_entry("btc_idr", pair_info(), book(), {"60": below})[0] is None
+
+
+def test_time_stop_sells_after_max_hold_bars():
+    from datetime import timedelta
+    from agent.portfolio.portfolio import Position
+    s = st_strat(style="st_breakout", max_hold_bars=48)
+    pos = Position("btc_idr", D("0.0001"), D(1_000_000_000), D(900_000_000), None, NOW)
+    assert s.propose_exit(pos, pair_info(), book(), {}, NOW + timedelta(hours=47)) is None
+    p = s.propose_exit(pos, pair_info(), book(), {}, NOW + timedelta(hours=48))
+    assert p is not None and p.setup == "time_exit" and p.order_type == "limit" and not p.is_emergency_exit
+
+
+def test_no_trailing_when_disabled():
+    s = st_strat(style="st_breakout", trailing=False)
+    from agent.portfolio.portfolio import Position
+    pos = Position("btc_idr", D("0.0001"), D(1_000_000_000), D(900_000_000), None, NOW)
+    assert s.trail_stop(pos, {"60": feat(tf="60", chandelier_stop=0.99e9)}, pair_info()) is None
+
+
+def test_default_style_is_unchanged_trend_follow():
+    assert settings().strategy.style == "trend_follow" and settings().strategy.max_hold_bars is None

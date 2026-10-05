@@ -28,7 +28,7 @@ from typing import Literal
 
 from agent.analysis.signals import TimeframeFeatures
 from agent.config import StrategySettings
-from agent.exchange.models import OrderBook, PairInfo
+from agent.exchange.models import TIMEFRAMES, OrderBook, PairInfo
 from agent.portfolio.portfolio import Position
 
 Intent = Literal["entry", "exit"]
@@ -91,6 +91,8 @@ class Strategy:
             return None, "indicators not ready"
         if f.close <= f.ema_trend:
             return None, f"close {f.close:,.0f} <= EMA{self.p.trend_ema} {f.ema_trend:,.0f}"
+        if self.p.style != "trend_follow":
+            return self._short_term_entry(pair, info, book, f)
         if f.close <= f.donchian_high:
             return None, f"no breakout: close {f.close:,.0f} <= {self.p.breakout_bars}d high {f.donchian_high:,.0f}"
 
@@ -118,11 +120,42 @@ class Strategy:
             reason=reason, confidence=conf, stop_loss=sl, target=target, setup="trend_breakout",
         ), "proposed"
 
+    def _short_term_entry(self, pair, info, book, f) -> tuple[TradeProposal | None, str]:
+        """st_breakout: close > N-bar high; st_pullback: RSI < rsi_entry. Both only above the trend EMA.
+        Stop = entry - stop_atr_mult x ATR, optional fixed TP = entry + tp_atr_mult x ATR."""
+        if self.p.style == "st_breakout":
+            if f.close <= f.donchian_high:
+                return None, (f"no breakout: close {f.close:,.0f} <= {self.p.breakout_bars}-bar high "
+                              f"{f.donchian_high:,.0f}")
+            why, setup = f"Breakout {self.p.breakout_bars}-bar high {f.donchian_high:,.0f}", "st_breakout"
+        else:
+            if not _finite(f.rsi) or f.rsi >= self.p.rsi_entry:
+                return None, f"no pullback: RSI {f.rsi:.0f} >= {self.p.rsi_entry:.0f}"
+            why, setup = f"Pullback RSI {f.rsi:.0f} < {self.p.rsi_entry:.0f}", "st_pullback"
+        entry = info.round_price(book.best_ask, "sell")
+        atr = _d(f.atr)
+        sl = info.round_price(entry - _d(self.p.stop_atr_mult) * atr, "buy")
+        if sl <= 0 or sl >= entry:
+            return None, "invalid stop-loss level"
+        tp = info.round_price(entry + _d(self.p.tp_atr_mult) * atr, "sell") if self.p.tp_atr_mult else None
+        target = tp or info.round_price(entry + _d(self.p.target_atr_mult) * atr, "sell")
+        qty = info.round_qty(self.capital_idr * _d(self.p.risk_per_trade_pct) / 100 / (entry - sl))
+        if qty <= 0:
+            return None, "position size rounds to zero"
+        reason = (f"{why}, above EMA{self.p.trend_ema} {f.ema_trend:,.0f}; ATR {f.atr:,.0f}; "
+                  f"TP {tp if tp else '-'}; time stop {self.p.max_hold_bars or '-'} bars")
+        return TradeProposal(
+            pair=pair, side="buy", order_type="limit", price=entry, qty=qty, intent="entry",
+            reason=reason, confidence=0.6, stop_loss=sl, take_profit=tp, target=target, setup=setup,
+        ), "proposed"
+
     # --------------------------------------------------------------- exits
 
     def trail_stop(self, position: Position, features: dict[str, TimeframeFeatures],
                    info: PairInfo) -> Decimal | None:
         """New (higher) stop level from closed candles, or None if unchanged."""
+        if not self.p.trailing:
+            return None
         f = features.get(self.tf)
         if f is None or not _finite(f.chandelier_stop):
             return None
@@ -137,6 +170,7 @@ class Strategy:
         info: PairInfo,
         book: OrderBook,
         features: dict[str, TimeframeFeatures],
+        now: datetime | None = None,
     ) -> TradeProposal | None:
         bid = book.best_bid
         if bid is None or position.qty <= 0:
@@ -156,4 +190,12 @@ class Strategy:
                 qty=qty, intent="exit", reason=f"Take-profit reached: bid {bid} >= TP {position.take_profit}",
                 confidence=1.0, setup="take_profit",
             )
+        if self.p.max_hold_bars and now is not None and position.opened_at is not None:
+            held_s = (now - position.opened_at).total_seconds()
+            if held_s >= self.p.max_hold_bars * TIMEFRAMES[self.tf]:
+                return TradeProposal(
+                    pair=position.pair, side="sell", order_type="limit", price=info.round_price(bid, "buy"),
+                    qty=qty, intent="exit", confidence=1.0, setup="time_exit",
+                    reason=f"Time stop: held {held_s / 3600:.1f} h >= {self.p.max_hold_bars} bars",
+                )
         return None

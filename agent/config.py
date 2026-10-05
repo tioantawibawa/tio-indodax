@@ -16,7 +16,7 @@ import stat
 from datetime import date
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
@@ -160,6 +160,14 @@ class StrategySettings(_Frozen):
     docs/backtest_phase3.md before testing."""
 
     timeframes: tuple[str, ...] = ("1D",)        # first = signal/timeline timeframe
+    # trend_follow = daily breakout held with a trailing stop (default);
+    # st_breakout / st_pullback = short-term: fixed take-profit + stop in ATR, time stop
+    style: Literal["trend_follow", "st_breakout", "st_pullback"] = "trend_follow"
+    stop_atr_mult: float = Field(1.5, gt=0)       # short-term initial stop: entry - k x ATR
+    tp_atr_mult: float | None = Field(None, gt=0)  # fixed take-profit: entry + k x ATR (None = none)
+    max_hold_bars: int | None = Field(None, ge=1)  # time stop, in bars of the first timeframe
+    trailing: bool = True                          # trail the Chandelier stop upward
+    rsi_entry: float = Field(30, gt=0, lt=100)     # st_pullback: buy when RSI < this in an uptrend
     lookback_bars: int = Field(300, ge=60, le=1000)
     # trend_follow
     breakout_bars: int = Field(20, ge=2)
