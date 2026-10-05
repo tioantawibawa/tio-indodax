@@ -151,7 +151,7 @@ yang bisa diubah (`--spread`, `--slippage`). Laporan: `REPORT.md`, `trades.csv`,
 
 ## Agent Office (pemantauan)
 
-`python -m agent.office` — dashboard read-only di `127.0.0.1:8787` (systemd: `indodax-office`). Lihat
+`python -m agent.office` — dashboard read-only di `127.0.0.1:18787` (systemd: `indodax-office`). Lihat
 `deploy/README_DEPLOY.md` § Agent Office untuk akses lewat SSH tunnel.
 
 ## Menjalankan (dev)

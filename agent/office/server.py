@@ -1,15 +1,16 @@
 """Agent Office web server (read-only, loopback only, stdlib).
 
-    python -m agent.office                      # http://127.0.0.1:8787
+    python -m agent.office                      # http://127.0.0.1:18787
     python -m agent.office --port 9000
 
 Open it from your laptop through an SSH tunnel (no port is opened on the VPS):
-    ssh -L 8787:127.0.0.1:8787 ubuntu@<vps>      then browse http://localhost:8787
+    ssh -L 18787:127.0.0.1:18787 ubuntu@<vps>      then browse http://localhost:18787
 """
 
 from __future__ import annotations
 
 import argparse
+import errno
 import ipaddress
 import json
 import os
@@ -97,7 +98,7 @@ def serve(host: str, port: int, db_path: str, settings) -> ThreadingHTTPServer:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=8787)
+    ap.add_argument("--port", type=int, default=18787)
     ap.add_argument("--settings", default=os.environ.get("AGENT_SETTINGS", "config/settings.yaml"))
     ap.add_argument("--db", default=None)
     args = ap.parse_args(argv)
@@ -106,7 +107,14 @@ def main(argv=None) -> int:
     if not Path(db_path).exists():
         print(f"database not found: {db_path}", file=sys.stderr)
         return 2
-    httpd = serve(args.host, args.port, db_path, s)
+    try:
+        httpd = serve(args.host, args.port, db_path, s)
+    except OSError as e:
+        if e.errno == errno.EADDRINUSE:
+            print(f"port {args.port} on {args.host} is already used by another program; pick another with "
+                  f"--port (and change ExecStart in deploy/indodax-office.service)", file=sys.stderr)
+            return 3          # systemd: RestartPreventExitStatus=3 -> no restart loop
+        raise
     print(f"Agent Office on http://{args.host}:{args.port} (read-only)", flush=True)
     try:
         httpd.serve_forever()

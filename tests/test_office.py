@@ -111,3 +111,19 @@ async def test_heartbeat_contains_no_secrets(env):  # noqa: F811
     hb = json.dumps(db.get_state("office:heartbeat"))
     for word in ("key", "secret", "token", "Sign"):
         assert word not in hb
+
+
+def test_port_in_use_exits_3_without_crash(tmp_path):
+    import socket
+
+    from agent.office.server import main
+    db = Database(tmp_path / "p.db")
+    db.close()
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    s.listen()
+    try:
+        port = s.getsockname()[1]
+        assert main(["--port", str(port), "--db", str(tmp_path / "p.db")]) == 3
+    finally:
+        s.close()

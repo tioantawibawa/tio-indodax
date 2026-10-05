@@ -8,9 +8,11 @@ User=indodax
 Group=indodax
 WorkingDirectory=/opt/indodax-agent
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/opt/indodax-agent/.venv/bin/python -m agent.office --host 127.0.0.1 --port 8787
+ExecStart=/opt/indodax-agent/.venv/bin/python -m agent.office --host 127.0.0.1 --port 18787
 Restart=always
 RestartSec=10
+# exit 3 = port already in use: change --port above, then restart manually
+RestartPreventExitStatus=3
 
 # read-only dashboard: no secrets, no internet, loopback only
 InaccessiblePaths=/opt/indodax-agent/.env
