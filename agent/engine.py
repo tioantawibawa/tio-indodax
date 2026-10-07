@@ -81,7 +81,8 @@ class DecisionEngine:
         self.pm = None
         if settings.portfolio.enabled:
             from agent.portfolio.manager import PortfolioManager
-            self.pm = PortfolioManager(settings.portfolio, db, mode, cap, tuple(settings.market.whitelist))
+            self.pm = PortfolioManager(settings.portfolio, db, mode, cap, tuple(settings.market.whitelist),
+                                       settings.risk.emergency_exit_max_slippage_pct)
 
     def features(self, m: PairMarket) -> dict[str, TimeframeFeatures]:
         return {tf: compute_features(df, tf, self.s.strategy) for tf, df in m.candles.items()}

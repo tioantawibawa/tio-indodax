@@ -28,6 +28,7 @@ from agent.analysis.signals import TimeframeFeatures
 from agent.config import PortfolioSettings
 from agent.data.market_data import PairMarket
 from agent.portfolio.portfolio import Portfolio
+from agent.risk.risk_manager import EXIT_MIN_MARGIN
 from agent.storage.db import Database
 from agent.strategy.strategy import TradeProposal
 
@@ -87,9 +88,10 @@ class PMResult:
 
 class PortfolioManager:
     def __init__(self, settings: PortfolioSettings, db: Database, mode: str, capital_idr: Decimal,
-                 whitelist: tuple[str, ...]):
+                 whitelist: tuple[str, ...], emergency_slippage_pct: float = 1.0):
         self.p, self.db, self.mode, self.capital = settings, db, mode, capital_idr
         self.whitelist = tuple(whitelist)
+        self.emergency_slippage = _d(emergency_slippage_pct)
 
     # ------------------------------------------------------------- planning
 
@@ -222,6 +224,13 @@ class PortfolioManager:
                 qty = info.round_qty(delta / entry)
                 if qty <= 0 or sl <= 0 or info.min_order_violation(entry, qty):
                     notes[pair] = "tambahan di bawah minimum order — dilewati"
+                    continue
+                # same rule as the risk manager: the whole position must stay sellable at its stop
+                total = qty + (held.qty if held is not None else ZERO)
+                exit_val = total * sl * (1 - self.emergency_slippage / 100)
+                if info.min_quote and exit_val < info.min_quote * EXIT_MIN_MARGIN:
+                    notes[pair] = (f"target {w * 100:.0f}% ({target:,.0f}) terlalu kecil: nilai di stop darurat "
+                                   f"{exit_val:,.0f} < {EXIT_MIN_MARGIN} x minimum order — dilewati")
                     continue
                 buys.append(TradeProposal(
                     pair=pair, side="buy", order_type="limit", price=entry, qty=qty, intent="entry",

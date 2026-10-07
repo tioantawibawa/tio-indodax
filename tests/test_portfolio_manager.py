@@ -309,3 +309,36 @@ async def test_nadia_announces_plans_and_dika_sinta_flag_potentials(tmp_path):
     hb = db.get_state("office:heartbeat")
     assert hb["pairs"]["sol_idr"]["pm_potential"] == "buy"
     db.close()
+
+
+def test_buy_that_would_be_unsellable_at_its_stop_is_not_proposed(tmp_path):
+    # live report 2026-10-07: 144 vetoes "position too small to exit at its stop-loss" in one day
+    s = pm_settings()
+    db = Database(tmp_path / "small.db")
+    pm = PortfolioManager(s.portfolio, db, "paper", D(40_000), tuple(PAIRS), 1.0)   # tiny capital
+    res = pm.propose(markets_up(), Portfolio(D(40_000)), NOW, {k: {"1D": feat(atr=4e7)} for k in PAIRS}, "1D", {})
+    assert "terlalu kecil" in res.notes["btc_idr"]                       # skipped, not sent to be vetoed
+    for p in res.proposals:                                               # whatever is proposed passes the rule
+        assert p.qty * p.stop_loss * D("0.99") >= D(10_000) * D("1.2")
+    db.close()
+
+
+async def test_report_outlook_and_labels_in_portfolio_mode(tmp_path):
+    from agent.reporting.daily_report import build_daily_report
+    from agent.reporting.telegram_bot import RecordingNotifier
+    from agent.runner import AgentRunner
+    from tests.test_runner import Clock
+
+    class MD:
+        async def fetch(self, pair):
+            return markets_up()[pair]
+
+    db = Database(tmp_path / "o.db")
+    r = AgentRunner(pm_settings(), db, MD(), "paper", notifier=RecordingNotifier(), now=Clock())
+    r.engine.features = lambda m: {"1D": feat()}
+    await r.run_cycle()
+    out = r.outlook_text()
+    assert "Target terinvestasi" in out and "dari EMA100" in out and "sinyal beli jika" not in out
+    rep = build_daily_report(r.report_data())
+    assert "stop darurat tetap" in rep and "TP: trailing" not in rep
+    db.close()

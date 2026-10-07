@@ -507,10 +507,12 @@ class AgentRunner:
             m = marks.get(k)
             un = rp((m - p.avg_cost) * p.qty) if m else "—"
             lines.append(f"{esc(k)} {p.qty} @ {rp(p.avg_cost)} · harga {rp(m)} · unrealized {un} · "
-                         f"SL {rp(p.stop_loss)} · TP {rp(p.take_profit) if p.take_profit else 'trailing'}")
+                         f"SL {rp(p.stop_loss)} · TP {rp(p.take_profit) if p.take_profit else self._tp_label()}")
         return "\n".join(lines)
 
     def outlook_text(self) -> str:
+        if self.engine.pm is not None:
+            return self._pm_outlook()
         parts = []
         for pair in self.s.market.whitelist:
             f = (self.last_features.get(pair) or {}).get(self.s.strategy.timeframes[0])
@@ -529,6 +531,35 @@ class AgentRunner:
             else:
                 parts.append(f"{name}: {regime}, {trend} EMA{self.s.strategy.trend_ema} — tidak ada entry.")
         return " ".join(parts) if parts else "Data belum cukup untuk pandangan pasar."
+
+    def _tp_label(self) -> str:
+        return "— (stop darurat tetap)" if self.engine.pm is not None else "trailing"
+
+    def _pm_outlook(self) -> str:
+        """Market view in portfolio mode: trend line, target weight and why a coin is (not) held."""
+        plan = self.engine.pm.plan() or {}
+        weights = plan.get("weights") or {}
+        sig = self.pm_signals(self.last_markets) if self.last_markets else {}
+        parts = []
+        for pair in self.s.market.whitelist:
+            s = sig.get(pair)
+            if s is None:
+                continue
+            name = pair.split("_")[0].upper()
+            trend = "tren naik" if s["closed_above"] else "di bawah garis tren"
+            w = weights.get(pair, 0) * 100
+            if pair in self.pf.positions:
+                state = f"dipegang, target {w:.0f}%"
+            elif w > 0:
+                state = f"target {w:.0f}% belum dibeli ({self.last_notes.get(pair, 'menunggu eksekusi')})"
+            else:
+                state = "tidak dipegang"
+            pot = " · POTENSI BELI" if s["potential"] == "buy" else " · POTENSI JUAL" if s["potential"] == "sell" else ""
+            parts.append(f"{name}: {trend} ({s['dist_pct']:+.1f}% dari EMA{self.s.portfolio.trend_ema}), "
+                         f"{state}{pot}.")
+        tot = sum(weights.values()) * 100
+        head = f"Target terinvestasi {tot:.0f}%, kas {100 - tot:.0f}%. " if weights else ""
+        return head + (" ".join(parts) if parts else "Data belum cukup untuk pandangan pasar.")
 
     def report_data(self, title: str = "Laporan harian") -> ReportData:
         now = self.now()
@@ -566,6 +597,7 @@ class AgentRunner:
             fees_today=sum((f.fee for f in fill_lines), ZERO), fills=fill_lines, positions=positions,
             proposals=len(decisions), approved=len(decisions) - len(vetoes), vetoed=len(vetoes),
             top_veto_reasons=top, errors=errors, outlook=self.outlook_text(), title=title, notes=notes,
+            no_tp_label=self._tp_label(),
         )
 
     def report_text(self) -> str:

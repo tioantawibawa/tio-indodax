@@ -57,6 +57,7 @@ class ReportData:
     outlook: str
     title: str = "Laporan harian"
     notes: list[str] = field(default_factory=list)
+    no_tp_label: str = "trailing"
 
 
 def rp(x: Decimal | float | None) -> str:
@@ -102,7 +103,7 @@ def build_daily_report(r: ReportData) -> str:
     if not r.positions:
         out.append("— tidak ada")
     for p in r.positions:
-        tp = f" · TP {rp(p.take_profit)}" if p.take_profit else " · TP: trailing"
+        tp = f" · TP {rp(p.take_profit)}" if p.take_profit else f" · TP: {r.no_tp_label}"
         out.append(f"{esc(p.pair)} {p.qty} @ {rp(p.avg_cost)} · harga {rp(p.mark)} · "
                    f"unrealized {rp(p.unrealized)} · SL {rp(p.stop)}{tp}")
     out += ["", "<b>Keputusan</b>",
