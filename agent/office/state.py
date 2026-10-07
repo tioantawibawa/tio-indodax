@@ -145,9 +145,18 @@ def _build(db: _RO, s: Settings, now: datetime, tz: ZoneInfo) -> dict:
     radar = []
     for pair in s.market.whitelist:
         d = pairs_hb.get(pair) or {}
-        radar.append({"pair": pair, "close": d.get("close"), "breakout": d.get("breakout"),
-                      "gap_pct": d.get("gap_pct"), "above_ema": d.get("above_ema"), "held": pair in positions,
-                      "regime": d.get("regime"), "note": d.get("note", "")})
+        row = {"pair": pair, "close": d.get("close"), "breakout": d.get("breakout"),
+               "gap_pct": d.get("gap_pct"), "above_ema": d.get("above_ema"), "held": pair in positions,
+               "regime": d.get("regime"), "note": d.get("note", ""), "potential": None}
+        if d.get("pm_dist_pct") is not None:   # portfolio mode: distance to the trend line instead of breakout
+            dist = d["pm_dist_pct"]
+            row.update(gap_pct=max(0.0, -dist) if not d.get("pm_closed_above") else 0.0,
+                       above_ema=bool(d.get("pm_closed_above")), breakout=d.get("pm_ema"),
+                       potential=d.get("pm_potential"),
+                       note=(f"{'+' if dist >= 0 else ''}{dist:.1f}% dari garis tren"
+                             + (" · POTENSI BELI" if d.get("pm_potential") == "buy" else
+                                " · POTENSI JUAL" if d.get("pm_potential") == "sell" else "")))
+        radar.append(row)
 
     # ---- desks: who is doing what
     desks = []
@@ -258,11 +267,20 @@ def _build(db: _RO, s: Settings, now: datetime, tz: ZoneInfo) -> dict:
                    (rv.get("findings") or [""])[0][:120])
         desks.append(_desk("reviewer", "🔍", "Reviewer Portofolio", "Review kualitas model", *rvd))
         k_up = sum(1 for r in radar if r["above_ema"])
+        pot_buy = [r["pair"].split("_")[0].upper() for r in radar if r.get("potential") == "buy"]
+        pot_sell = [r["pair"].split("_")[0].upper() for r in radar if r.get("potential") == "sell"]
         for d in desks:
             if d["key"] == "analyst" and not _keeps_alert(d):
-                d.update(state="working" if alive else "idle",
-                         task=f"{k_up}/{len(radar)} koin dalam tren naik (di atas EMA{s.portfolio.trend_ema})",
-                         detail="Sinyal tren untuk manajer portofolio")
+                if pot_buy or pot_sell:
+                    d.update(state="warn" if pot_sell else "working",
+                             task=" · ".join(x for x in (f"Potensi BELI: {', '.join(pot_buy)}" if pot_buy else "",
+                                                          f"Potensi JUAL: {', '.join(pot_sell)}" if pot_sell else "")
+                                             if x),
+                             detail=f"{k_up}/{len(radar)} koin dalam tren naik · keputusan saat close 07:00 WIB")
+                else:
+                    d.update(state="working" if alive else "idle",
+                             task=f"{k_up}/{len(radar)} koin dalam tren naik (di atas EMA{s.portfolio.trend_ema})",
+                             detail="Memantau tiap 5 menit · alert bila harga dekat garis tren")
 
     # ---- equity curve (immune to owner capital changes: capital + cumulative daily PnL)
     curve, cum = [], ZERO

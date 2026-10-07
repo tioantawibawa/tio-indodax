@@ -50,3 +50,26 @@ volatilitas nyata vs target, pemakaian modal, biaya/30 hari, turnover, **selisih
 model** (kesetiaan eksekusi), pembanding tahan-6-koin dan BTC. Vonis BAIK / PERHATIAN / BURUK / AWAL
 dengan ambang di config `portfolio.review_*`. Reviewer tidak pernah mengubah pengaturan — hanya
 melapor dan merekomendasikan; keputusan di pemilik.
+
+## Revisi 2026-10-07 — Nadia lebih aktif, alert potensi dari Dika & Sinta
+
+Permintaan pemilik: bertindak bila rekomendasi berubah dalam 3 hari; pengamat pasar & analis lebih aktif.
+Kriteria (dicatat sebelum uji): return tidak lebih buruk > 3 poin dari versi mingguan di kedua periode,
+DD maks ≤ 30%.
+
+| Varian | 2018+ | 2023+ | DD maks | Biaya 2× (2018+/2023+) | Fee 2023+ |
+|---|---|---|---|---|---|
+| W7 mingguan | +117,1% | +46,5% | 22,3% | +111% / +44% | Rp 24.703 |
+| **R7 reaksi harian + refresh 7 hari (dipilih)** | **+142,8%** | **+69,1%** | 24,2% (2023+: 16,6%) | +128% / +63% | Rp 52.723 |
+| R3 reaksi harian + refresh 3 hari | +134,2% | +58,8% | 24,4% | +122% / +53% | Rp 52.729 |
+| S3 refresh 3 hari | +143,3% | +54,1% | 27,7% | +131% / +49% | Rp 40.138 |
+
+Semua lolos; R7 dipilih (Sharpe tertinggi, bereaksi setiap close harian — lebih cepat dari 3 hari).
+Catatan jujur: memilih yang terbaik dari 4 varian sedikit melebih-lebihkan hasil ke depan.
+
+- `react_to_changes: true`: pada setiap close harian baru, rekomendasi dihitung ulang; bila koin masuk/
+  keluar tren atau bobot bergeser ≥ ambang (5% modal), rencana baru dibuat saat itu juga.
+- Setiap rencana baru diumumkan ke Telegram sebagai **instruksi Nadia ke Raka** (BELI/JUAL/tahan per koin).
+- `alerts: true`: tiap siklus 5 menit Dika & Sinta membandingkan harga live dengan garis tren EMA100 dari
+  candle harian yang sudah close; harga dalam 2% dari garis (atau sudah menembusnya) → Telegram
+  "Potensi BELI/JUAL" (maks sekali per koin per hari per jenis). Order tetap hanya saat close harian.

@@ -33,6 +33,7 @@ from agent.strategy.strategy import TradeProposal
 
 ZERO = Decimal(0)
 PLAN_KEY = "{mode}:pm:plan"
+CHECK_KEY = "{mode}:pm:last_check"
 HISTORY_KEY = "{mode}:pm:history"
 
 
@@ -101,22 +102,44 @@ class PortfolioManager:
         made = datetime.fromisoformat(plan["made_at"])
         return now - made >= timedelta(days=self.p.rebalance_days) - timedelta(hours=1)
 
-    def _make_plan(self, markets: Mapping[str, PairMarket], pf: Portfolio, marks, now: datetime) -> dict:
+    @staticmethod
+    def _closes(markets: Mapping[str, PairMarket]) -> dict[str, pd.Series]:
         closes = {}
         for pair, m in markets.items():
             df = m.candles.get("1D")
             if df is not None and len(df):
                 closes[pair] = df["close"].astype(float)
-        weights, diag = target_weights(closes, self.p)
+        return closes
+
+    def _changes(self, old: dict, new: dict[str, float], base: Decimal) -> list[str]:
+        """Human-readable differences between the current plan and a fresh recommendation."""
+        band = max(_d(self.p.min_trade_idr), base * _d(self.p.band_pct) / 100)
+        out = []
+        for pair in sorted(set(old) | set(new)):
+            a, b = old.get(pair, 0.0), new.get(pair, 0.0)
+            sym = pair.split("_")[0].upper()
+            if a == 0 and b > 0:
+                out.append(f"{sym} masuk tren (0% → {b * 100:.0f}%)")
+            elif a > 0 and b == 0:
+                out.append(f"{sym} keluar tren ({a * 100:.0f}% → 0%)")
+            elif abs(_d(b - a)) * base >= band:
+                out.append(f"{sym} {a * 100:.0f}% → {b * 100:.0f}%")
+        return out
+
+    def _make_plan(self, markets: Mapping[str, PairMarket], pf: Portfolio, marks, now: datetime,
+                   reason: str = "terjadwal", changes: list[str] | None = None) -> dict:
+        weights, diag = target_weights(self._closes(markets), self.p)
         equity = pf.equity(marks)
         plan = {"made_at": now.isoformat(), "weights": weights, "equity": str(equity),
+                "reason": reason, "changes": changes or [],
                 "exposure_before": float(sum(pos.value(marks[k]) for k, pos in pf.positions.items()) / equity)
                 if equity > 0 else 0.0,
                 "scale": diag.get("scale"), "port_vol": diag.get("port_vol"), "excluded": diag.get("excluded"),
                 "vol": diag.get("vol")}
         self.db.set_state(PLAN_KEY.format(mode=self.mode), plan)
         hist = self.db.get_state(HISTORY_KEY.format(mode=self.mode), []) or []
-        hist.append({k: plan[k] for k in ("made_at", "weights", "equity", "exposure_before", "scale", "port_vol")})
+        hist.append({k: plan[k] for k in ("made_at", "weights", "equity", "exposure_before", "scale", "port_vol",
+                                          "reason")})
         self.db.set_state(HISTORY_KEY.format(mode=self.mode), hist[-200:])
         return plan
 
@@ -128,12 +151,30 @@ class PortfolioManager:
         marks = {k: (m.orderbook.best_bid or m.ticker.last) for k, m in markets.items()}
         notes: dict[str, str] = {}
         plan = self.plan()
-        if self._due(now, plan):
+        complete = bool(markets) and all(k in markets for k in pf.positions) \
+            and all("1D" in m.candles and len(m.candles["1D"]) for m in markets.values())
+        reason, changes = None, None
+        if plan is None:
+            reason = "rencana pertama"
+        elif self._due(now, plan):
+            reason = f"terjadwal (tiap {self.p.rebalance_days} hari)"
+        elif self.p.react_to_changes and complete:
+            # once per new daily close: did the recommendation change since the current plan?
+            last_close = max(m.candles["1D"].index[-1] for m in markets.values()).isoformat()
+            if self.db.get_state(CHECK_KEY.format(mode=self.mode)) != last_close:
+                self.db.set_state(CHECK_KEY.format(mode=self.mode), last_close)
+                fresh, _ = target_weights(self._closes(markets), self.p)
+                changes = self._changes(plan["weights"], fresh, min(pf.equity(marks), self.capital))
+                if changes:
+                    reason = "perubahan rekomendasi"
+        if reason is not None:
             # never plan without data for a held coin (it would get weight 0 and be sold by mistake)
-            if not markets or any(k not in markets for k in pf.positions) \
-                    or any("1D" not in m.candles for m in markets.values()):
+            if not complete:
                 return PMResult([], {"*": "data pasar belum lengkap — rebalance ditunda"}, plan)
-            plan = self._make_plan(markets, pf, marks, now)
+            if changes is None and plan is not None:
+                fresh, _ = target_weights(self._closes(markets), self.p)
+                changes = self._changes(plan["weights"], fresh, min(pf.equity(marks), self.capital))
+            plan = self._make_plan(markets, pf, marks, now, reason, changes)
         if now - datetime.fromisoformat(plan["made_at"]) > timedelta(hours=self.p.plan_valid_hours):
             for k in markets:
                 notes[k] = f"menunggu rebalance berikutnya (target {plan['weights'].get(k, 0) * 100:.0f}%)"

@@ -86,7 +86,10 @@ portfolio:                                        # portfolio manager (docs/port
   vol_lookback: 30
   cov_lookback: 60
   max_weight: 0.45
-  rebalance_days: 7
+  rebalance_days: 7                               # full refresh weekly ...
+  react_to_changes: true                          # ... and re-plan at every daily close if the recommendation changed (owner 2026-10-07)
+  alerts: true                                    # Telegram "potensi beli/jual" from Dika & Sinta
+  alert_band_pct: 2.0                             # when the live price is within 2% of the trend line
   band_pct: 5.0                                   # skip trades < 5% of capital (min Rp 15.000)
   min_trade_idr: 15000
   stop_atr_mult: 6.0                              # fixed catastrophe stop, not trailed

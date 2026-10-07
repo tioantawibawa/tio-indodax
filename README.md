@@ -62,7 +62,9 @@ Strategi intraday versi pertama (15m/1h/4h) gagal di backtest dan diganti — li
 ## Manajer portofolio & reviewer (sejak 2026-10-07)
 
 Alokasi mingguan: koin di atas EMA100, bobot inverse-volatility, diskalakan ke volatilitas portofolio
-20%, sisanya kas; rebalance jual-dulu-baru-beli; stop darurat 6×ATR. Menggantikan entry strategi
+20%, sisanya kas; rebalance jual-dulu-baru-beli; stop darurat 6×ATR. Rencana dihitung ulang di
+setiap close harian dan langsung dieksekusi bila rekomendasi berubah (instruksi diumumkan ke Telegram);
+alert "potensi beli/jual" saat harga live mendekati garis tren EMA100. Menggantikan entry strategi
 `trend_follow`. Reviewer mingguan (Senin 21:30 WIB, `/review`) memberi vonis BAIK/PERHATIAN/BURUK.
 Telegram: `/portfolio`, `/review`. Detail & hasil uji: [`docs/portfolio_manager.md`](docs/portfolio_manager.md).
 

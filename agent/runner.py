@@ -260,11 +260,100 @@ class AgentRunner:
                 await self.notifier.send(f"✅ <b>Order terisi</b> ({self.mode}) {esc(f.pair)} {f.side.upper()} "
                                          f"{f.qty} @ {rp(f.price)} · fee {rp(f.fee_idr)}{pnl}")
         self._book_day(now, markets)
+        if self.engine.pm is not None:
+            await self._pm_messages(now, markets)
         self._office_heartbeat(now, markets, res, fills, recon_ok, free_idr)
         log.info("cycle_done", mode=self.mode, status=self.status.value, pairs=len(markets),
                  positions=len(self.pf.positions), decisions=len(res.decisions), fills=len(fills),
                  reconcile_ok=recon_ok, notes={p: n[:60] for p, n in res.notes.items()})
         return fills
+
+    def pm_signals(self, markets) -> dict[str, dict]:
+        """Per pair: trend line (EMA of closed daily candles), live price, distance, and potential."""
+        p = self.s.portfolio
+        plan = (self.engine.pm.plan() or {}) if self.engine.pm else {}
+        weights = plan.get("weights") or {}
+        out = {}
+        for pair, m in markets.items():
+            df = m.candles.get("1D")
+            if df is None or len(df) < p.trend_ema or m.orderbook.best_bid is None:
+                continue
+            close = df["close"].astype(float)
+            ema = float(close.ewm(span=p.trend_ema, adjust=False).mean().iloc[-1])
+            price = float(m.orderbook.best_bid)
+            dist = (price / ema - 1) * 100
+            in_plan = weights.get(pair, 0) > 0 or pair in self.pf.positions
+            closed_above = float(close.iloc[-1]) > ema
+            potential = None
+            if not in_plan and not closed_above and dist >= -p.alert_band_pct:
+                potential = "buy"
+            elif in_plan and closed_above and dist <= p.alert_band_pct:
+                potential = "sell"
+            out[pair] = {"ema": ema, "price": price, "dist_pct": dist, "closed_above": closed_above,
+                         "in_plan": in_plan, "potential": potential}
+        return out
+
+    async def _pm_messages(self, now: datetime, markets) -> None:
+        """Nadia announces every new plan as instructions; Dika & Sinta flag potential buys/sells early."""
+        try:
+            plan = self.engine.pm.plan()
+            if plan and self.db.get_state(f"{self.mode}:pm:announced") != plan["made_at"]:
+                self.db.set_state(f"{self.mode}:pm:announced", plan["made_at"])
+                await self.notifier.send(self._plan_message(plan, markets))
+            if not self.s.portfolio.alerts:
+                return
+            key = f"{self.mode}:pm:alerts"
+            sent = self.db.get_state(key, {}) or {}
+            day = self.local_date(now)
+            for pair, sg in self.pm_signals(markets).items():
+                tag = f"{day}:{sg['potential']}"
+                if sg["potential"] is None or sent.get(pair) == tag:
+                    continue
+                sent[pair] = tag
+                sym = esc(pair.split("_")[0].upper())
+                where = (f"{abs(sg['dist_pct']):.1f}% {'di atas' if sg['dist_pct'] >= 0 else 'di bawah'} "
+                         f"garis tren EMA{self.s.portfolio.trend_ema} ({rp(Decimal(str(round(sg['ema']))))})")
+                if sg["potential"] == "buy":
+                    msg = (f"👀 <b>Potensi BELI {sym}</b> (Dika & Sinta): harga {rp(Decimal(str(round(sg['price']))))}, "
+                           f"{where}. Bila candle harian ditutup di atas garis tren (07:00 WIB), "
+                           f"Nadia memasukkan {sym} ke rencana dan Raka membeli.")
+                else:
+                    msg = (f"👀 <b>Potensi JUAL {sym}</b> (Dika & Sinta): harga {rp(Decimal(str(round(sg['price']))))}, "
+                           f"{where}. Bila candle harian ditutup di bawah garis tren (07:00 WIB), "
+                           f"Nadia mengeluarkan {sym} dari rencana dan Raka menjual.")
+                await self.notifier.send(msg)
+            self.db.set_state(key, sent)
+        except Exception as e:  # noqa: BLE001 - messaging must never break trading
+            log.warning("pm_messages_failed", error=f"{type(e).__name__}: {e}"[:200])
+
+    def _plan_message(self, plan: dict, markets) -> str:
+        marks = self._marks(markets)
+        equity = self.pf.equity(marks) if len(marks) == len(self.pf.positions) else self.pf.cash_idr
+        base = min(equity, self.capital)
+        band = max(Decimal(str(self.s.portfolio.min_trade_idr)), base * Decimal(str(self.s.portfolio.band_pct)) / 100)
+        lines = [f"📋 <b>Nadia: rencana alokasi baru</b> — {esc(plan.get('reason') or 'terjadwal')}"]
+        for c in plan.get("changes") or []:
+            lines.append(f"• {esc(c)}")
+        lines.append("<b>Instruksi ke Raka</b>")
+        for pair, w in sorted(plan["weights"].items(), key=lambda kv: -kv[1]):
+            pos = self.pf.positions.get(pair)
+            cur = pos.value(marks[pair]) if pos and pair in marks else Decimal(0)
+            target = base * Decimal(str(w))
+            delta = target - cur
+            sym = esc(pair.split("_")[0].upper())
+            if w == 0 and cur > 0:
+                act = f"JUAL semua ({rp(cur)})"
+            elif delta >= band:
+                act = f"BELI ±{rp(delta)}"
+            elif -delta >= band:
+                act = f"JUAL ±{rp(-delta)}"
+            else:
+                act = "tahan" if cur > 0 else "—"
+            lines.append(f"{sym}: target {w * 100:.0f}% ({rp(target)}) · {act}")
+        tot = sum(plan["weights"].values())
+        lines.append(f"Terinvestasi {tot * 100:.0f}% · kas {100 - tot * 100:.0f}%. Jual dieksekusi dulu, "
+                     "beli setelah penjualan selesai. Semua order tetap lewat manajer risiko.")
+        return "\n".join(lines)
 
     def _pm_snapshot(self) -> dict | None:
         if self.engine.pm is None:
@@ -295,6 +384,12 @@ class AgentRunner:
                 if m is not None:
                     d.update(bid=str(m.orderbook.best_bid), ask=str(m.orderbook.best_ask))
                 pairs[p] = d
+            if self.engine.pm is not None:   # trend-line view used by the portfolio manager
+                for p, sg in self.pm_signals(markets).items():
+                    if p in pairs:
+                        pairs[p].update(pm_ema=sg["ema"], pm_dist_pct=sg["dist_pct"],
+                                        pm_closed_above=sg["closed_above"], pm_potential=sg["potential"],
+                                        pm_in_plan=sg["in_plan"])
             dm = self.deadman
             self.db.set_state("office:heartbeat", {
                 "ts": now.isoformat(), "mode": self.mode, "status": self.status.value,

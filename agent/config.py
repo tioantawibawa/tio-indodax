@@ -216,6 +216,9 @@ class PortfolioSettings(_Frozen):
     cov_lookback: int = Field(60, ge=20)
     max_weight: float = Field(0.45, gt=0, le=1.0)
     rebalance_days: int = Field(7, ge=1)
+    react_to_changes: bool = False                     # re-plan at each new daily close if the recommendation changed
+    alerts: bool = True                                # Telegram "potensi beli/jual" when price nears the trend line
+    alert_band_pct: float = Field(2.0, ge=0)           # ... within this % of EMA(trend_ema)
     plan_valid_hours: int = Field(36, ge=1)
     band_pct: float = Field(5.0, ge=0)                 # skip trades smaller than this % of the base
     min_trade_idr: float = Field(15000, ge=0)

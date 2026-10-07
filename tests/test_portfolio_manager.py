@@ -235,3 +235,77 @@ def test_review_too_early(tmp_path):
                             ZoneInfo("Asia/Jakarta")).review(NOW, {})
     assert rev.verdict == "AWAL"
     db.close()
+
+
+# ------------------------------------------------------------- reacting to changes (2026-10-07)
+
+def shifted(m: PairMarket, closes: pd.Series) -> PairMarket:
+    df = pd.DataFrame({"open": closes, "high": closes * 1.01, "low": closes * 0.99, "close": closes, "volume": 10.0})
+    return PairMarket(m.pair, m.info, m.ticker, m.orderbook, {"1D": df}, m.fetched_at)
+
+
+def test_reacts_to_a_changed_recommendation_at_the_next_daily_close(tmp_path):
+    s = pm_settings(react_to_changes=True)
+    db = Database(tmp_path / "re.db")
+    pm = PortfolioManager(s.portfolio, db, "paper", D(1_000_000), tuple(PAIRS))
+    pf = Portfolio(D(1_000_000))
+    mk = markets_up()
+    pm.propose(mk, pf, NOW, feats(), "1D", {})
+    first = pm.plan()
+    assert first["reason"] == "rencana pertama" and first["weights"]["sol_idr"] == 0
+    # next day, nothing changed -> no new plan
+    nxt = {k: shifted(m, m.candles["1D"]["close"].shift(-1, freq="1D")) for k, m in mk.items()}
+    pm.propose(nxt, pf, NOW + timedelta(days=1), feats(), "1D", {})
+    assert pm.plan()["made_at"] == first["made_at"]
+    # SOL rallies above its trend line at the following close -> immediate new plan
+    sol = nxt["sol_idr"].candles["1D"]["close"]
+    rally = sol.copy()
+    rally.iloc[-1] = sol.ewm(span=100, adjust=False).mean().iloc[-1] * 1.06   # closes just above its trend line
+    nxt2 = {k: shifted(m, m.candles["1D"]["close"].shift(1, freq="1D")) for k, m in nxt.items()}
+    nxt2["sol_idr"] = shifted(nxt["sol_idr"], pd.concat([rally, pd.Series([rally.iloc[-1] * 1.01],
+                                                                             index=[rally.index[-1] + pd.Timedelta(days=1)])]))
+    res = pm.propose(nxt2, pf, NOW + timedelta(days=2), feats(), "1D", {})
+    plan = pm.plan()
+    assert plan["made_at"] != first["made_at"] and plan["reason"] == "perubahan rekomendasi"
+    assert any("SOL masuk tren" in c for c in plan["changes"]) and plan["weights"]["sol_idr"] > 0
+    assert any(p.pair == "sol_idr" and p.side == "buy" for p in res.proposals), (res.notes, plan["weights"])
+    # the same close is not re-checked again
+    pm.propose(nxt2, pf, NOW + timedelta(days=2, hours=1), feats(), "1D", {})
+    assert pm.plan()["made_at"] == plan["made_at"]
+    db.close()
+
+
+async def test_nadia_announces_plans_and_dika_sinta_flag_potentials(tmp_path):
+    from agent.reporting.telegram_bot import RecordingNotifier
+    from agent.runner import AgentRunner
+    from tests.test_runner import Clock
+
+    base = markets_up()
+    sol = base["sol_idr"].candles["1D"]["close"]
+    ema = sol.ewm(span=100, adjust=False).mean().iloc[-1]
+    # SOL closed below its trend line, but the live price is now 1% above it -> potential BUY
+    live = int(ema * 1.01)
+    base["sol_idr"] = PairMarket("sol_idr", pair_info("sol_idr"), ticker("sol_idr"),
+                                 book("sol_idr", bid=str(live), ask=str(live + 1000)), base["sol_idr"].candles,
+                                 NOW.timestamp())
+
+    class MD:
+        async def fetch(self, pair):
+            return base[pair]
+
+    db = Database(tmp_path / "n.db")
+    notes = RecordingNotifier()
+    clock = Clock()
+    r = AgentRunner(pm_settings(), db, MD(), "paper", notifier=notes, now=clock)
+    r.engine.features = lambda m: {"1D": feat()}
+    await r.run_cycle()
+    text = "\n".join(notes.messages)
+    assert "Nadia: rencana alokasi baru" in text and "rencana pertama" in text and "Instruksi ke Raka" in text
+    assert "BELI" in text and "Potensi BELI SOL" in text
+    n = len(notes.messages)
+    clock.t += timedelta(minutes=5)
+    await r.run_cycle()
+    assert not any("Nadia" in m or "Potensi" in m for m in notes.messages[n:])   # no repeats
+    hb = db.get_state("office:heartbeat")
+    assert hb["pairs"]["sol_idr"]["pm_potential"] == "buy"
+    db.close()
