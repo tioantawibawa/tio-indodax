@@ -132,7 +132,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 22px; }
 @keyframes sip { 0%,70%,100% { transform: translate(0,0) rotate(0); } 80%,90% { transform: translate(18px,-38px) rotate(-25deg); } }
 @keyframes blink { 0% { opacity: 1; } 100% { opacity: .15; } }
 @media (prefers-reduced-motion: reduce) { .emp * { animation: none !important; } }
-.bubble { position: absolute; transform: translate(-50%, -100%); width: 25%; max-width: 270px; background: var(--panel);
+.bubble { position: absolute; transform: translate(-50%, -100%); width: 22%; max-width: 250px; background: var(--panel);
   color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 7px 10px; font-size: 12px; line-height: 1.35;
   box-shadow: 0 4px 14px rgba(0,0,0,.12); pointer-events: auto; }
 .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; background: inherit;
@@ -212,12 +212,14 @@ function kpi(label, value, sub, cls = "", meter = null) {
 
 // ---------- the office scene (static drawing; live data only via textContent/attributes) ----------
 const STAFF = {
-  market:   {name: "Dika",  title: "Pengamat Pasar",  shirt: "#3b82c4", hair: "#2b2118", style: 0, prop: "📡", x: 210, y: 400},
-  analyst:  {name: "Sinta", title: "Analis Strategi", shirt: "#8b5cc7", hair: "#1d1612", style: 1, prop: "📊", x: 600, y: 400},
-  risk:     {name: "Bima",  title: "Manajer Risiko",  shirt: "#2f8f5b", hair: "#3a2a1c", style: 2, prop: "🛡️", x: 990, y: 400},
-  executor: {name: "Raka",  title: "Eksekutor",       shirt: "#d0743c", hair: "#16120e", style: 0, prop: "⚡", x: 210, y: 680},
-  deadman:  {name: "Wati",  title: "Penjaga Deadman", shirt: "#c4466b", hair: "#2a1d14", style: 1, prop: "⏱️", x: 600, y: 680},
-  reporter: {name: "Lala",  title: "Pelapor",         shirt: "#2a9fa8", hair: "#4a3020", style: 1, prop: "📨", x: 990, y: 680},
+  market:   {name: "Dika",  title: "Pengamat Pasar",  shirt: "#3b82c4", hair: "#2b2118", style: 0, prop: "📡", x: 150, y: 400},
+  analyst:  {name: "Sinta", title: "Analis Strategi", shirt: "#8b5cc7", hair: "#1d1612", style: 1, prop: "📊", x: 450, y: 400},
+  risk:     {name: "Bima",  title: "Manajer Risiko",  shirt: "#2f8f5b", hair: "#3a2a1c", style: 2, prop: "🛡️", x: 750, y: 400},
+  portfolio:{name: "Nadia", title: "Manajer Portofolio", shirt: "#1f4e8c", hair: "#2a1c12", style: 1, prop: "💼", x: 1050, y: 400},
+  executor: {name: "Raka",  title: "Eksekutor",       shirt: "#d0743c", hair: "#16120e", style: 0, prop: "⚡", x: 150, y: 680},
+  deadman:  {name: "Wati",  title: "Penjaga Deadman", shirt: "#c4466b", hair: "#2a1d14", style: 1, prop: "⏱️", x: 450, y: 680},
+  reporter: {name: "Lala",  title: "Pelapor",         shirt: "#2a9fa8", hair: "#4a3020", style: 1, prop: "📨", x: 750, y: 680},
+  reviewer: {name: "Hendra", title: "Reviewer",       shirt: "#5b5f6b", hair: "#9a9a9a", style: 2, prop: "🔍", x: 1050, y: 680},
 };
 const HAIR = [
   'M-21,-88 Q-22,-110 0,-110 Q22,-110 21,-88 Q14,-100 0,-100 Q-14,-100 -21,-88Z',
@@ -257,7 +259,7 @@ function buildScene() {
   const floorLines = Array.from({length: 13}, (_, i) =>
     `<line class="s-floorline" x1="${i * 100}" y1="250" x2="${i * 100 - 180}" y2="780"/>`).join("") +
     [340, 470, 620].map(y => `<line class="s-floorline" x1="0" y1="${y}" x2="1200" y2="${y}"/>`).join("");
-  const svg = `<svg viewBox="0 0 1200 780" role="img" aria-label="Kantor agent: enam karyawan di meja masing-masing">
+  const svg = `<svg viewBox="0 0 1200 780" role="img" aria-label="Kantor agent: delapan karyawan di meja masing-masing">
     <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop id="sky1" offset="0" stop-color="#8ec5f2"/><stop id="sky2" offset="1" stop-color="#d9efff"/></linearGradient></defs>
     <rect class="s-wall" x="0" y="0" width="1200" height="250"/>
     <rect class="s-wall2" x="0" y="0" width="1200" height="22"/>
@@ -280,8 +282,8 @@ function buildScene() {
       <g id="board"></g></g>
     <g transform="translate(1110,120)"><rect x="-20" y="80" width="40" height="44" rx="6" fill="#b5694a"/>
       <ellipse cx="0" cy="62" rx="34" ry="30" fill="#3f8f4f"/><ellipse cx="-16" cy="40" rx="18" ry="24" fill="#4aa35c"/><ellipse cx="16" cy="44" rx="16" ry="22" fill="#358046"/></g>
-    ${["market", "analyst", "risk"].map(k => employeeSVG(k, STAFF[k])).join("")}
-    ${["executor", "deadman", "reporter"].map(k => employeeSVG(k, STAFF[k])).join("")}
+    ${["market", "analyst", "risk", "portfolio"].map(k => employeeSVG(k, STAFF[k])).join("")}
+    ${["executor", "deadman", "reporter", "reviewer"].map(k => employeeSVG(k, STAFF[k])).join("")}
   </svg>`;
   const scene = $("scene");
   scene.innerHTML = svg;   // constants only — no data from the agent in this markup

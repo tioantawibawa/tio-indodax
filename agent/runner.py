@@ -81,6 +81,10 @@ class AgentRunner:
         self.last_features: dict[str, dict[str, TimeframeFeatures]] = {}
         self.last_notes: dict[str, str] = {}
         self.last_clock_offset_ms: int | None = None
+        self.reviewer = None
+        if settings.portfolio.enabled:
+            from agent.portfolio.review import PortfolioReviewer
+            self.reviewer = PortfolioReviewer(settings.portfolio, db, mode, self.capital, self.tz)
 
     def _rebase_capital(self) -> str | None:
         """When the owner changes ``agent_capital_idr``, shift the stored peak equity and today's
@@ -262,6 +266,17 @@ class AgentRunner:
                  reconcile_ok=recon_ok, notes={p: n[:60] for p, n in res.notes.items()})
         return fills
 
+    def _pm_snapshot(self) -> dict | None:
+        if self.engine.pm is None:
+            return None
+        plan = self.engine.pm.plan() or {}
+        last = self.reviewer.last() if self.reviewer else None
+        return {"plan_at": plan.get("made_at"), "weights": plan.get("weights"), "scale": plan.get("scale"),
+                "port_vol": plan.get("port_vol"), "target_vol": self.s.portfolio.target_vol,
+                "rebalance_days": self.s.portfolio.rebalance_days,
+                "review": None if not last else {"verdict": last["verdict"], "at": last["at"],
+                                                 "findings": last.get("findings", [])[:2]}}
+
     def _office_heartbeat(self, now, markets, res, fills, recon_ok, free_idr) -> None:
         """Snapshot for the read-only Agent Office dashboard (agent/office). Never raises."""
         try:
@@ -294,6 +309,7 @@ class AgentRunner:
                 "deadman": None if dm is None else {"healthy": dm.healthy, "failures": dm.failures,
                                                     "last_ok_at": dm.last_ok_at},
                 "pairs": pairs,
+                "pm": self._pm_snapshot(),
             })
         except Exception as e:  # noqa: BLE001 - monitoring must never break trading
             log.warning("office_heartbeat_failed", error=f"{type(e).__name__}: {e}"[:200])
@@ -506,6 +522,49 @@ class AgentRunner:
             self.db.set_state("golive_review:done", today)
         await self.notifier.send(msg)
         return True
+
+    # ------------------------------------------------- portfolio manager
+
+    def portfolio_text(self) -> str:
+        if self.engine.pm is None:
+            return "Manajer portofolio tidak aktif (portfolio.enabled = false)."
+        plan = self.engine.pm.plan()
+        if not plan:
+            return "Manajer portofolio aktif — rencana alokasi pertama dibuat pada siklus berikutnya."
+        marks = self._marks(self.last_markets)
+        equity = self.pf.equity(marks) if len(marks) == len(self.pf.positions) else self.pf.cash_idr
+        base = min(equity, self.capital)
+        made = datetime.fromisoformat(plan["made_at"]).astimezone(self.tz)
+        nxt = made + timedelta(days=self.s.portfolio.rebalance_days)
+        lines = [f"📊 <b>Manajer portofolio</b> · target volatilitas {self.s.portfolio.target_vol * 100:.0f}%",
+                 f"Rencana {made:%d %b %H:%M} WIB · rebalance berikutnya ±{nxt:%d %b} · "
+                 f"skala {plan.get('scale') or 0:.2f}"]
+        for pair, w in sorted(plan["weights"].items(), key=lambda kv: -kv[1]):
+            pos = self.pf.positions.get(pair)
+            cur = pos.value(marks[pair]) if pos and pair in marks else Decimal(0)
+            why = "" if w > 0 else f" ({esc((plan.get('excluded') or {}).get(pair, 'di luar tren'))})"
+            lines.append(f"{esc(pair.split('_')[0].upper())}: target {w * 100:.0f}% ({rp(base * Decimal(str(w)))})"
+                         f" · sekarang {rp(cur)}{why}")
+        tot = sum(plan["weights"].values())
+        lines.append(f"Total target terinvestasi {tot * 100:.0f}% · kas {100 - tot * 100:.0f}%")
+        last = self.reviewer.last() if self.reviewer else None
+        if last:
+            lines.append(f"Review terakhir: <b>{esc(last['verdict'])}</b> ({esc(last['at'][:10])})")
+        return "\n".join(lines)
+
+    async def run_review(self, send: bool = True) -> str:
+        if self.reviewer is None:
+            return "Manajer portofolio tidak aktif — tidak ada yang direview."
+        from agent.portfolio.review import format_review
+        try:
+            rev = self.reviewer.review(self.now(), self.last_markets)
+            text = format_review(rev, esc)
+        except Exception as e:  # noqa: BLE001
+            self.db.record_error("review", f"{type(e).__name__}: {e}"[:300])
+            text = f"⚠️ Review gagal: {esc(type(e).__name__)}"
+        if send:
+            await self.notifier.send(text)
+        return text
 
     async def send_daily_report(self) -> None:
         await self.notifier.send(build_daily_report(self.report_data()))

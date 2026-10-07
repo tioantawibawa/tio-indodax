@@ -204,6 +204,47 @@ class StrategySettings(_Frozen):
         return self
 
 
+class PortfolioSettings(_Frozen):
+    """Portfolio manager (agent/portfolio/manager.py). When enabled it replaces the strategy's entries:
+    weekly trend-filtered, inverse-volatility weights scaled to ``target_vol``. NOT hard limits —
+    every order still passes the risk manager."""
+
+    enabled: bool = False
+    target_vol: float = Field(0.20, gt=0, le=1.0)      # annualised portfolio volatility target
+    trend_ema: int = Field(100, ge=10)
+    vol_lookback: int = Field(30, ge=10)
+    cov_lookback: int = Field(60, ge=20)
+    max_weight: float = Field(0.45, gt=0, le=1.0)
+    rebalance_days: int = Field(7, ge=1)
+    plan_valid_hours: int = Field(36, ge=1)
+    band_pct: float = Field(5.0, ge=0)                 # skip trades smaller than this % of the base
+    min_trade_idr: float = Field(15000, ge=0)
+    stop_atr_mult: float = Field(6.0, gt=0)            # fixed catastrophe stop: entry - k x ATR (not trailed)
+    # periodic review (agent/portfolio/review.py)
+    review_weekday: str = "mon"
+    review_time: str = "21:30"
+    review_max_vol_ratio: float = Field(1.5, gt=0)      # realised vol > ratio x target -> PERHATIAN
+    review_warn_drawdown_pct: float = Field(25, gt=0)
+    review_bad_drawdown_pct: float = Field(35, gt=0)
+    review_max_gap_pp: float = Field(3.0, ge=0)          # actual vs model-shadow return gap (pp) -> PERHATIAN
+    review_bad_gap_pp: float = Field(8.0, ge=0)
+    review_max_fees_pct_month: float = Field(1.0, ge=0)  # fees per 30 days, % of capital
+
+    @field_validator("review_time")
+    @classmethod
+    def _hhmm(cls, v: str) -> str:
+        if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
+            raise ValueError("review_time must be HH:MM")
+        return v
+
+    @field_validator("review_weekday")
+    @classmethod
+    def _wd(cls, v: str) -> str:
+        if v not in ("mon", "tue", "wed", "thu", "fri", "sat", "sun"):
+            raise ValueError("review_weekday must be mon..sun")
+        return v
+
+
 class LLMSettings(_Frozen):
     model: str = "claude-opus-5"
     effort: str = Field("low", pattern="^(low|medium|high|xhigh|max)$")
@@ -231,6 +272,7 @@ class Settings(_Frozen):
     live_gate: LiveGateSettings = LiveGateSettings()
     reporting: ReportingSettings = ReportingSettings()
     strategy: StrategySettings = StrategySettings()
+    portfolio: PortfolioSettings = PortfolioSettings()
     llm: LLMSettings = LLMSettings()
     storage: StorageSettings = StorageSettings()
     logging: LoggingSettings = LoggingSettings()

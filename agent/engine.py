@@ -78,6 +78,10 @@ class DecisionEngine:
         self.strategy = Strategy(settings.strategy, cap)
         self.risk = RiskManager(settings.risk, settings.market, settings.fees)
         self.equity = EquityTracker(db, mode, settings.reporting.timezone)
+        self.pm = None
+        if settings.portfolio.enabled:
+            from agent.portfolio.manager import PortfolioManager
+            self.pm = PortfolioManager(settings.portfolio, db, mode, cap, tuple(settings.market.whitelist))
 
     def features(self, m: PairMarket) -> dict[str, TimeframeFeatures]:
         return {tf: compute_features(df, tf, self.s.strategy) for tf, df in m.candles.items()}
@@ -161,9 +165,24 @@ class DecisionEngine:
         for pair, pos in list(portfolio.positions.items()):
             if pair in exited:
                 continue
+            if self.pm is not None:
+                continue    # portfolio mode: fixed catastrophe stops, no trailing
             new = self.strategy.trail_stop(pos, feats[pair], markets[pair].info)
             if new is not None and portfolio.raise_stop(pair, new):
                 log.info("stop_raised", pair=pair, old=str(pos.stop_loss), new=str(new))
+
+        # 2a) portfolio manager mode: allocation replaces the strategy's entries
+        if self.pm is not None:
+            res = self.pm.propose(markets, portfolio, now, feats, self.s.strategy.timeframes[0],
+                                  ctx.pending_buy_idr)
+            notes.update(res.notes)
+            for prop in res.proposals:
+                if prop.pair in exited or any(d.proposal.pair == prop.pair for _, d in decisions):
+                    notes[prop.pair] = "sudah ada keputusan exit siklus ini"
+                    continue
+                m = markets[prop.pair]
+                record(self.risk.evaluate(prop, ctx, MarketView(m.info, m.ticker, m.orderbook)))
+            return CycleResult(decisions, notes, halt, daily)
 
         # 2) entries
         for pair in self.s.market.whitelist:

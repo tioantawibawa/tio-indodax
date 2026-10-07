@@ -180,6 +180,10 @@ def build_scheduler(settings, runner, public, link=None, deadman=None):
                       max_instances=1, coalesce=True)
     sched.add_job(runner.send_daily_report, CronTrigger(hour=int(hh), minute=int(mm), timezone=tz),
                   id="daily_report")
+    if getattr(runner, "reviewer", None) is not None:
+        rh, rm = settings.portfolio.review_time.split(":")
+        sched.add_job(runner.run_review, CronTrigger(day_of_week=settings.portfolio.review_weekday, hour=int(rh),
+                                                     minute=int(rm), timezone=tz), id="pm_review")
     if runner.mode == "paper" and settings.reporting.go_live_review_date is not None:
         # interval (not cron) so a restart after the review time still sends it that day
         sched.add_job(runner.go_live_review, "interval", minutes=5, id="go_live_review",

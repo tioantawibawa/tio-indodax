@@ -271,12 +271,24 @@ class Backtester:
             self.db.record_fill(trade_id=coid, client_order_id=coid, ts=t, mode=MODE, pair=pair, side=side,
                                 price=price, qty=qty, fee_idr=fee, realized_pnl=r.realized_pnl)
             if side == "buy":
-                open_trades[pair] = Trade(pair, setup, t, price, qty, fee)
+                tr = open_trades.get(pair)
+                if tr is None:
+                    open_trades[pair] = Trade(pair, setup, t, price, qty, fee)
+                else:   # add-on (portfolio rebalance): average the entry
+                    tr.entry_price = (tr.entry_price * tr.qty + price * qty) / (tr.qty + qty)
+                    tr.qty += qty
+                    tr.entry_fee += fee
             else:
-                tr = open_trades.pop(pair)
-                tr.exit_time, tr.exit_price, tr.exit_fee, tr.exit_reason = t, price, fee, reason
-                tr.pnl = (price - tr.entry_price) * qty - tr.entry_fee - fee
-                trades.append(tr)
+                tr = open_trades[pair]
+                part = min(qty / tr.qty, Decimal(1)) if tr.qty > 0 else Decimal(1)
+                closed = Trade(pair, tr.setup, tr.entry_time, tr.entry_price, qty, tr.entry_fee * part,
+                               t, price, fee, reason)
+                closed.pnl = r.realized_pnl   # ledger PnL (average cost incl. buy fees) net of the sell fee
+                trades.append(closed)
+                tr.qty -= qty
+                tr.entry_fee -= tr.entry_fee * part
+                if pair not in pf.positions or tr.qty <= 0:
+                    open_trades.pop(pair)
 
         for ts in steps:
             t_open = int(ts.timestamp())
@@ -327,8 +339,11 @@ class Backtester:
                 if f is None:
                     continue
                 tk, ob = self._quote(p, bars[p], float(self.vol24[p].loc[ts]), t_close)
+                # the portfolio manager needs the closed daily history (up to and including this bar)
+                candles = ({self.entry_tf: self.data[p][self.entry_tf].loc[:ts]}
+                           if self.s.portfolio.enabled else {})
                 markets[p] = PairMarket(pair=p, info=self.infos[p], ticker=tk, orderbook=ob,
-                                        candles={}, fetched_at=float(t_close))
+                                        candles=candles, fetched_at=float(t_close))
                 feats[p] = f
             if set(pf.positions) - set(markets):
                 continue  # cannot value positions without data; skip step

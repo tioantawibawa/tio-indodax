@@ -227,6 +227,43 @@ def _build(db: _RO, s: Settings, now: datetime, tz: ZoneInfo) -> dict:
         rep = ("idle", f"Laporan berikutnya {s.reporting.daily_report_time} WIB", rep_txt)
     desks.append(_desk("reporter", "📨", "Pelapor", "Telegram & laporan harian", *rep))
 
+    pm = hb.get("pm")
+    if not pm:
+        desks.append(_desk("portfolio", "💼", "Manajer Portofolio", "Alokasi modal mingguan", "off",
+                           "Tidak aktif (portfolio.enabled = false)", ""))
+        desks.append(_desk("reviewer", "🔍", "Reviewer Portofolio", "Review kualitas model", "off",
+                           "Tidak aktif", ""))
+    else:
+        w = pm.get("weights") or {}
+        held = [k.split("_")[0].upper() for k, v in sorted(w.items(), key=lambda kv: -kv[1]) if v > 0]
+        tot = sum(w.values()) * 100
+        plan_age = _age_s(pm.get("plan_at"), now)
+        nxt = (datetime.fromisoformat(pm["plan_at"]) + timedelta(days=pm.get("rebalance_days") or 7)
+               ).astimezone(tz).strftime("%d %b") if pm.get("plan_at") else "—"
+        if pm.get("plan_at") is None:
+            pmd = ("idle", "Menyiapkan rencana alokasi pertama", "")
+        elif plan_age is not None and plan_age < 36 * 3600 and (resting or dec_today):
+            pmd = ("working", f"Rebalance berjalan: target {tot:.0f}% di {', '.join(held) or 'kas'}",
+                   f"Target volatilitas {pm.get('target_vol', 0) * 100:.0f}% · skala {pm.get('scale') or 0:.2f}")
+        else:
+            pmd = ("idle", f"Target terinvestasi {tot:.0f}% ({', '.join(held) or 'semua kas'})",
+                   f"Rebalance berikutnya ±{nxt} · target volatilitas {pm.get('target_vol', 0) * 100:.0f}%")
+        desks.append(_desk("portfolio", "💼", "Manajer Portofolio", "Alokasi modal mingguan", *pmd))
+        rv = pm.get("review")
+        if not rv:
+            rvd = ("idle", "Belum ada review — terjadwal mingguan", "Kirim /review untuk review sekarang")
+        else:
+            st = {"BAIK": "idle", "AWAL": "idle", "PERHATIAN": "warn", "BURUK": "down"}.get(rv["verdict"], "idle")
+            rvd = (st, f"Review terakhir: {rv['verdict']} ({_ago(_age_s(rv.get('at'), now))})",
+                   (rv.get("findings") or [""])[0][:120])
+        desks.append(_desk("reviewer", "🔍", "Reviewer Portofolio", "Review kualitas model", *rvd))
+        k_up = sum(1 for r in radar if r["above_ema"])
+        for d in desks:
+            if d["key"] == "analyst" and not _keeps_alert(d):
+                d.update(state="working" if alive else "idle",
+                         task=f"{k_up}/{len(radar)} koin dalam tren naik (di atas EMA{s.portfolio.trend_ema})",
+                         detail="Sinyal tren untuk manajer portofolio")
+
     # ---- equity curve (immune to owner capital changes: capital + cumulative daily PnL)
     curve, cum = [], ZERO
     for d in db.rows("SELECT * FROM daily_pnl WHERE mode = ? ORDER BY date", mode):
@@ -270,6 +307,10 @@ def _build(db: _RO, s: Settings, now: datetime, tz: ZoneInfo) -> dict:
         "equity_curve": curve[-120:],
         "whitelist": list(s.market.whitelist),
     }
+
+
+def _keeps_alert(d: dict) -> bool:
+    return d.get("state") in ("warn", "down")
 
 
 def _desk(key, icon, name, role, state, task, detail="") -> dict:

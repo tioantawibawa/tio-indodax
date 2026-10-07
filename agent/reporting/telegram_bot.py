@@ -84,7 +84,9 @@ HELP = (
     "/report — laporan hari ini sekarang\n"
     "/pause — hentikan entry baru\n"
     "/resume — lanjutkan (juga setelah HALTED)\n"
-    "/kill CONFIRM — batalkan semua order &amp; HALT"
+    "/kill CONFIRM — batalkan semua order &amp; HALT\n"
+    "/portfolio — alokasi target vs posisi (manajer portofolio)\n"
+    "/review — jalankan review manajer portofolio sekarang"
 )
 
 
@@ -113,6 +115,10 @@ class CommandRouter:
             return self.runner.positions_text()
         if cmd == "/report":
             return self.runner.report_text()
+        if cmd == "/portfolio":
+            return self.runner.portfolio_text()
+        if cmd == "/review":
+            return await self.runner.run_review(send=False)
         if cmd == "/pause":
             return await self.runner.pause()
         if cmd == "/resume":

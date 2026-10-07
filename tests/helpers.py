@@ -29,6 +29,9 @@ def settings(**overrides) -> Settings:
     raw["risk"]["max_position_pct"] = 10
     raw["strategy"]["risk_per_trade_pct"] = 1.0
     raw["live_gate"]["min_paper_days"] = 14
+    raw["risk"].update(max_open_positions=3, max_asset_exposure_pct=30, daily_loss_limit_pct=3,
+                       max_drawdown_pct=15)
+    raw.setdefault("portfolio", {})["enabled"] = False
     for section, values in overrides.items():
         raw[section].update(values)
     return Settings.model_validate(raw)

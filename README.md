@@ -59,16 +59,23 @@ Detail API Indodax (endpoint, signature, rate limit, format pair, presisi, fee, 
 
 Strategi intraday versi pertama (15m/1h/4h) gagal di backtest dan diganti — lihat `docs/backtest_phase3.md`.
 
+## Manajer portofolio & reviewer (sejak 2026-10-07)
+
+Alokasi mingguan: koin di atas EMA100, bobot inverse-volatility, diskalakan ke volatilitas portofolio
+20%, sisanya kas; rebalance jual-dulu-baru-beli; stop darurat 6×ATR. Menggantikan entry strategi
+`trend_follow`. Reviewer mingguan (Senin 21:30 WIB, `/review`) memberi vonis BAIK/PERHATIAN/BURUK.
+Telegram: `/portfolio`, `/review`. Detail & hasil uji: [`docs/portfolio_manager.md`](docs/portfolio_manager.md).
+
 ## Hard limits (`agent/risk/risk_manager.py`)
 
 | Limit | Perilaku |
 |---|---|
 | Modal agent (`agent_capital_idr`, Rp 300.000 sejak 2026-10-04) | total posisi + order pending ≤ modal; belanja ≤ kas ledger agent dan ≤ saldo IDR bebas di exchange |
-| Maks per posisi 10% (varian B 20% dicoba 2026-10-01..05, dikembalikan) | proposal lebih besar di-RESIZE; posisi penuh → VETO (termasuk order pending) |
-| Maks posisi terbuka 3 | pair baru ditolak bila sudah 3 (order pending dihitung) |
-| Maks exposure per aset 30% | dijumlah lintas market (mis. `btc_idr` + `btc_usdt`) |
-| Daily loss 3% modal | entry baru di-VETO + flag `trigger_daily_stop` (untuk alert & PAUSE) |
-| Drawdown 15% dari puncak | entry di-VETO + flag `trigger_halt` (kill switch) |
+| Maks per posisi 45% (sejak 2026-10-07, manajer portofolio vol 20%) | proposal lebih besar di-RESIZE; posisi penuh → VETO (termasuk order pending) |
+| Maks posisi terbuka 6 (sejak 2026-10-07; awalnya 3) | pair baru ditolak bila sudah 6 (order pending dihitung) |
+| Maks exposure per aset 45% (sejak 2026-10-07; awalnya 30%) | dijumlah lintas market (mis. `btc_idr` + `btc_usdt`) |
+| Daily loss 6% modal (sejak 2026-10-07; awalnya 3%) | entry baru di-VETO + flag `trigger_daily_stop` (untuk alert & PAUSE) |
+| Drawdown 40% dari puncak (sejak 2026-10-07; awalnya 15%) | entry di-VETO + flag `trigger_halt` (kill switch) |
 | Order 10/jam, 40/hari | VETO bila tercapai |
 | Hanya limit order | market order hanya untuk emergency stop-loss exit, dengan batas slippage 1% |
 | Stop-loss wajib | buy tanpa SL, atau SL ≥ harga entry → VETO; tidak bisa dimatikan lewat config |

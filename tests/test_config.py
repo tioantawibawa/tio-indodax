@@ -25,7 +25,8 @@ def raw() -> dict:
 def test_repo_settings_load():
     s = load_settings(ROOT / "config/settings.yaml")
     assert s.market.whitelist == ("btc_idr", "eth_idr", "sol_idr", "xrp_idr", "doge_idr", "ada_idr")
-    assert s.risk.max_open_positions == 3
+    assert s.risk.max_open_positions == 6 and s.risk.max_drawdown_pct == 40
+    assert s.portfolio.enabled and s.portfolio.target_vol == 0.20
     assert s.risk.require_stop_loss is True
 
 
@@ -46,8 +47,8 @@ def test_unknown_key_rejected():
 @pytest.mark.parametrize("key,value", [
     ("max_position_pct", 0),
     ("max_position_pct", 150),
-    ("max_position_pct", 40),        # > max_asset_exposure_pct
-    ("daily_loss_limit_pct", 20),    # >= max_drawdown_pct
+    ("max_position_pct", 50),        # > max_asset_exposure_pct (45)
+    ("daily_loss_limit_pct", 45),    # >= max_drawdown_pct (40)
     ("max_orders_per_hour", 100),    # > per day
     ("require_stop_loss", False),
     ("agent_capital_idr", -1),
