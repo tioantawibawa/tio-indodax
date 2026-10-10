@@ -1,0 +1,22 @@
+[Unit]
+Description=Indodax agent daily database backup (+ copy to Telegram)
+
+[Service]
+Type=oneshot
+User=indodax
+Group=indodax
+WorkingDirectory=/opt/indodax-agent
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/indodax-agent/.venv/bin/python -m scripts.backup_db
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/indodax-agent/data
+MemoryMax=300M
+TimeoutStartSec=300

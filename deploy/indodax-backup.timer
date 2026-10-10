@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Indodax agent database backup at 03:30 WIB
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

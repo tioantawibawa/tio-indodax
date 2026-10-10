@@ -97,6 +97,15 @@ portfolio:                                        # portfolio manager (docs/port
   review_weekday: "mon"                           # periodic review: Monday 21:30 WIB (+ /review)
   review_time: "21:30"
 
+watchdog:                                         # Satpam (systemd timer, every 5 min) + daily DB backup (03:30 WIB)
+  stale_minutes: 15                               # no trading cycle for this long -> Telegram alert
+  realert_minutes: 60
+  min_free_disk_mb: 500
+  max_backup_age_hours: 30
+  backup_dir: "data/backups"
+  backup_keep_days: 14
+  backup_to_telegram: true                        # off-VPS copy; the DB holds no API keys or tokens
+
 llm:                                              # enabled via LLM_ENABLED in .env
   model: "claude-opus-5"
   effort: "low"

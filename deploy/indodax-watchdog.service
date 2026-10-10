@@ -1,0 +1,22 @@
+[Unit]
+Description=Indodax agent Satpam (watchdog: heartbeat, service, disk, backup age -> Telegram)
+
+[Service]
+Type=oneshot
+User=indodax
+Group=indodax
+WorkingDirectory=/opt/indodax-agent
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/indodax-agent/.venv/bin/python -m scripts.watchdog
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/indodax-agent/data
+MemoryMax=200M
+TimeoutStartSec=120

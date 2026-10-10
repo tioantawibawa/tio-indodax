@@ -248,6 +248,18 @@ class PortfolioSettings(_Frozen):
         return v
 
 
+class WatchdogSettings(_Frozen):
+    """Satpam (scripts/watchdog.py, systemd timer) and daily DB backup (scripts/backup_db.py)."""
+
+    stale_minutes: int = Field(15, ge=6)          # no trading cycle for this long -> alert
+    realert_minutes: int = Field(60, ge=5)        # repeat while the problem persists
+    min_free_disk_mb: int = Field(500, ge=50)
+    max_backup_age_hours: int = Field(30, ge=1)
+    backup_dir: str = "data/backups"
+    backup_keep_days: int = Field(14, ge=1)
+    backup_to_telegram: bool = True               # off-VPS copy (the DB holds no credentials)
+
+
 class LLMSettings(_Frozen):
     model: str = "claude-opus-5"
     effort: str = Field("low", pattern="^(low|medium|high|xhigh|max)$")
@@ -276,6 +288,7 @@ class Settings(_Frozen):
     reporting: ReportingSettings = ReportingSettings()
     strategy: StrategySettings = StrategySettings()
     portfolio: PortfolioSettings = PortfolioSettings()
+    watchdog: WatchdogSettings = WatchdogSettings()
     llm: LLMSettings = LLMSettings()
     storage: StorageSettings = StorageSettings()
     logging: LoggingSettings = LoggingSettings()
@@ -304,6 +317,8 @@ class Secrets(BaseSettings):
     TELEGRAM_CHAT_ID: str = ""
     LLM_ENABLED: bool = False
     ANTHROPIC_API_KEY: SecretStr = SecretStr("")
+    # optional external dead-man check (e.g. https://hc-ping.com/<uuid>): pinged after every good cycle
+    HEALTHCHECK_URL: SecretStr = SecretStr("")
 
     @model_validator(mode="after")
     def _live_requires_confirmation(self) -> "Secrets":
@@ -323,7 +338,7 @@ class Secrets(BaseSettings):
         vals = [
             self.INDODAX_API_KEY, self.INDODAX_API_SECRET,
             self.INDODAX_V2_API_KEY, self.INDODAX_V2_API_SECRET,
-            self.TELEGRAM_BOT_TOKEN, self.ANTHROPIC_API_KEY,
+            self.TELEGRAM_BOT_TOKEN, self.ANTHROPIC_API_KEY, self.HEALTHCHECK_URL,
         ]
         return [v.get_secret_value() for v in vals if v.get_secret_value()]
 

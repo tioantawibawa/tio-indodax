@@ -96,7 +96,8 @@ async def run(env_file: str = ".env", settings_file: str | None = None) -> int:
         deadman = DeadmanSwitch(trade_client, list(settings.market.whitelist), settings.deadman.countdown_ms,
                                 notifier)
     runner = AgentRunner(settings, db, md, mode="live" if live else "paper", notifier=notifier, llm=llm,
-                         trade_client=trade_client, deadman=deadman)
+                         trade_client=trade_client, deadman=deadman,
+                         healthcheck_url=secrets.HEALTHCHECK_URL.get_secret_value())
     runner_holder["runner"] = runner
 
     stop = asyncio.Event()

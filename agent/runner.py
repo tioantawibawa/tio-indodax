@@ -55,13 +55,14 @@ class AgentRunner:
     def __init__(self, settings: Settings, db: Database, market_data, mode: str = "paper",
                  notifier: Notifier | None = None, llm=None,
                  now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-                 trade_client=None, deadman=None):
+                 trade_client=None, deadman=None, healthcheck_url: str = ""):
         if mode not in ("paper", "live"):
             raise ValueError(f"unsupported mode {mode!r}")
         if mode == "live" and trade_client is None:
             raise ValueError("live mode requires a trade client")
         self.s, self.db, self.md, self.mode = settings, db, market_data, mode
         self.trade_client, self.deadman = trade_client, deadman
+        self.healthcheck_url = healthcheck_url
         self.notifier = notifier or NullNotifier()
         self.now = now
         self.tz = ZoneInfo(settings.reporting.timezone)
@@ -201,6 +202,7 @@ class AgentRunner:
         try:
             fills = await self._cycle()
             self.consecutive_errors = 0
+            await self._ping_healthcheck(fail=False)
             return fills
         except Exception as e:  # noqa: BLE001 - the loop must survive anything
             self.consecutive_errors += 1
@@ -209,7 +211,19 @@ class AgentRunner:
             if self.consecutive_errors == ERROR_ALERT_THRESHOLD:
                 await self.notifier.send(f"🚨 <b>Error berulang</b> ({self.consecutive_errors}× berturut-turut): "
                                          f"{esc(type(e).__name__)}: {esc(str(e)[:200])}")
+                await self._ping_healthcheck(fail=True)
             return []
+
+    async def _ping_healthcheck(self, fail: bool) -> None:
+        """External dead-man check (Satpam, outside the VPS). Never raises, never logs the URL."""
+        if not self.healthcheck_url:
+            return
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5) as c:
+                await c.get(self.healthcheck_url.rstrip("/") + ("/fail" if fail else ""))
+        except Exception as e:  # noqa: BLE001
+            log.warning("healthcheck_ping_failed", error_type=type(e).__name__)
 
     async def _cycle(self) -> list[FillEvent]:
         now = self.now()

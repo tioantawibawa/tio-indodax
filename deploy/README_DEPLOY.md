@@ -73,6 +73,26 @@ otomatis saat restart — tidak ada order ganda.
 2. Server: `sudo systemctl stop indodax-agent` (dan `disable` agar tidak start saat reboot).
 3. Paling akhir: hapus/nonaktifkan API key di https://indodax.com/trade_api.
 
+## Satpam (watchdog) & backup harian
+**Satpam** berjalan terpisah dari agent (timer tiap 5 menit): cek siklus trading terakhir, status service,
+ruang disk, umur backup → Telegram langsung (alert DARURAT bila ada posisi terbuka tanpa perlindungan
+stop-loss). Alert diulang tiap 60 menit selama masalah ada, lalu pesan "pulih". **Backup** tiap hari
+03:30 WIB: salinan konsisten + cek integritas + gzip, disimpan 14 hari di `data/backups/` dan dikirim ke
+Telegram Anda (salinan di luar VPS; database tidak berisi API key/token).
+```bash
+sudo systemctl enable --now indodax-watchdog.timer indodax-backup.timer
+sudo systemctl start indodax-backup.service        # backup pertama sekarang
+sudo systemctl list-timers 'indodax-*' --no-pager
+sudo bash deploy/agent-run.sh scripts.watchdog --dry-run   # lihat hasil cek tanpa kirim Telegram
+```
+**Satpam eksternal (opsional, disarankan)** — mendeteksi VPS mati total: buat check gratis di
+https://healthchecks.io (period 5 menit, grace 15 menit, hubungkan email/Telegram), salin "ping URL" ke
+`HEALTHCHECK_URL=` di `/opt/indodax-agent/.env`, lalu `sudo systemctl restart indodax-agent`.
+
+**Memulihkan backup:** `sudo systemctl stop indodax-agent`, lalu sebagai user indodax di
+`/opt/indodax-agent`: `gunzip -c data/backups/agent-YYYYMMDD-HHMM.db.gz > data/agent.db`, lalu
+`sudo systemctl start indodax-agent`.
+
 ## Agent Office (dashboard pemantauan)
 Dashboard web read-only yang menampilkan tiap bagian agent sebagai "pegawai" di mejanya (pengamat pasar,
 analis strategi, manajer risiko, eksekutor, penjaga Deadman, pelapor) beserta equity, posisi, radar sinyal,
