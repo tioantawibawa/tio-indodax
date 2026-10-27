@@ -27,3 +27,30 @@ tidak menyentuh live. Kode: `scripts/research_ml.py`. Data: candle harian Indoda
 4. Tetap berlaku dengan biaya 2×.
 Bila lolos: diuji lagi di mesin backtest asli lalu paper trading sebelum ada keputusan live.
 Bila gagal: model tidak dipakai; sistem tetap seperti sekarang.
+
+## Hasil (dijalankan 2026-10-27, out-of-sample 2020-01-01 s/d 2026-10-26, 18.356 baris)
+
+**Prediksi** (naik dalam 7 hari): GBM AUC 0,523, akurasi 52,2% (basis naik 48,9%); per tahun 2020 0,478 ·
+2021 0,517 · 2022 0,475 · 2023 0,532 · 2024 0,559 · 2025 0,536 · 2026 0,559. Logistik AUC 0,518.
+Dua tahun (2020, 2022) lebih buruk dari acak.
+
+**Strategi** (simulasi sederhana harian — tanpa batas modal agent dan tanpa ambang rebalance, sehingga
+lebih peka biaya daripada mesin asli; perbandingan A/B/C tetap setara):
+
+| | Total 2020+ | DD | Sharpe | Biaya 2× (total / DD) |
+|---|---|---|---|---|
+| A baseline EMA100 (model Nadia) | +292,9% | 33,3% | 1,06 | +121,7% / 45,7% |
+| B EMA100 + filter ML | +70,1% | 35,3% | 0,55 | −47,4% / 66,7% |
+| C ML saja | +77,2% | 32,7% | 0,57 | −60,2% / 72,9% |
+
+B hanya unggul di 1 dari 7 tahun. Filter ML membuat sinyal berganti-ganti (probabilitas sering melintasi
+0,5) → transaksi dan biaya jauh lebih banyak, sementara keunggulan prediksinya terlalu kecil.
+
+| Kriteria | Hasil |
+|---|---|
+| 1. AUC ≥ 0,53 dan > 0,5 tiap tahun | ❌ 0,523; 2020 & 2022 < 0,5 |
+| 2. B > A di ≥ 5/7 tahun dan total | ❌ 1/7 |
+| 3. Sharpe B > A, DD B ≤ DD A + 5 | ❌ 0,55 vs 1,06 |
+| 4. Tetap unggul dengan biaya 2× | ❌ |
+
+**Kesimpulan: TIDAK LOLOS — model prediksi tidak dipakai; sistem live tidak diubah.**
