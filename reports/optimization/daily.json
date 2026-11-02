@@ -1,0 +1,1845 @@
+{
+  "generated_at": "2026-11-02T14:47:51.591568+00:00",
+  "source_sha256": {
+    "data/history/pairs.json": "6868bd6ee7bb474d94953bb9b2c393160a8ee656f4771b3f5da122b6aafe4818",
+    "data/history/btc_idr_1D.csv": "e36bfdb5a5fb15d058a1f444edbe186b156c5dbaaf0211583048726b24916a0c",
+    "data/history/eth_idr_1D.csv": "c6fa02ec24efedf41ceaf885eee5296a3fc1fc7f0c45ab0e31d9962994bb21a2",
+    "data/history/sol_idr_1D.csv": "57df0951fd037568f1a96b7f0f3b6e82f1367a55bf22d92bd85f09cc9dd513c2",
+    "data/history/xrp_idr_1D.csv": "680fd9d495646301266033296d6a048ea55d648369b6d71445c5b2f5223938e8",
+    "data/history/doge_idr_1D.csv": "3de538113d8b71a0f4be21cec8b8eff9f11be1500c72d2021451a1bc4c0f7dfd",
+    "data/history/ada_idr_1D.csv": "2ea9569f627f586cd339a7232ee9ae1bd046406a1583c32dabebe84bddcb751b"
+  },
+  "code_sha256": {
+    "/workspace/tio-indodax/scripts/compare_portfolios.py": "9011a7dc8ef3a1d6b6062df5510329f443f9f145b6fe4ce59f4d5d4d4c2c88b6",
+    "agent/__init__.py": "8dbb12ffc935f500e792018187b8268a6dcd693a3bef164fc17350eb78e2c4dd",
+    "agent/analysis/__init__.py": "e7e849375c0f0518366a9bc68f3e949a52d397b4f2cef81418ee8ef07e43491b",
+    "agent/analysis/costs.py": "babb61818a8de1d5ae33bfb0276c2e0d2dfd637ae7c65e151e8b1b26ade0b2a0",
+    "agent/analysis/filters.py": "a1e9616c10d0260e2386149fad98028d72078429980bd9f08186530fbeacdce5",
+    "agent/analysis/indicators.py": "2ad80fdefec81ec76e40e5a5655a59f7bd04e507e66b766bcb73979cda2c7751",
+    "agent/analysis/llm_analyst.py": "853ea560e42872fb99f503f08fe7fc7c062561c431948c2f0ad9366d85c7c2e2",
+    "agent/analysis/regime.py": "f44b8b5cc0d8195ebd20bd02e399f56db358d441337e90850f8f554758b0da9c",
+    "agent/analysis/signals.py": "d9577012cfb621d86cbdbfd56e69f0254f08e1224a8ea2876b425a1e1b80767c",
+    "agent/backtest/__init__.py": "4d95826ae0de12a384dcfaf4106c4c7b8f0607c40ae74fad14eff8248a2a2a83",
+    "agent/backtest/backtester.py": "dfd98b32210b93468e74ac9d96120e73c38e721553cc996cf0413b6ae93c68d9",
+    "agent/backtest/paper_broker.py": "622a947e184505fcc6485a2adcf09575253df19df44a538dbbeddc5e96984d31",
+    "agent/backtest/report.py": "dbde34ef04d5f82a46dbb7cecb90286a0e89d387f4238443f473be389500c04d",
+    "agent/config.py": "62a3a89fb5a687a5c8b5b83407780c852e1696d5ddb476f151ce648b802f4011",
+    "agent/data/__init__.py": "b9a97c405e2bec2185e1bc81717b2fd6ce3e6f4278fa2007e4ac08f540a19745",
+    "agent/data/market_data.py": "2e39e9cbe09080269b8d1b77fad21b08ee233d6736391f1564bc84aa16ef2196",
+    "agent/engine.py": "457358fd451610b047767904e9bb6e9643f8834ecbb12b866bfb6199ba4a90ce",
+    "agent/exchange/__init__.py": "a0e4636936ba922699e1fb864a74ae23709bd8d84d827cceb1f0ed6202a33366",
+    "agent/exchange/errors.py": "70c8b2ee17a7fd4dd7dddd2fe737781d9ecb020319bcc3298baf255042f118b0",
+    "agent/exchange/models.py": "56046968f9b56cb0efecaba2d82597c34f1c202e135a6621ea5e42cab7514bdc",
+    "agent/exchange/pairs.py": "6d8840001be248876b8d5accc67eeca9b23b606d2b8b28f8d64605082a94bed6",
+    "agent/exchange/private_client.py": "60e7092542bc3998969ea0989ba52e2156a5aa1862c32adfb2abc268c4fffa45",
+    "agent/exchange/public_client.py": "7d5bf130c115bebcae57e40bd2c1625287fcb6ac9c306c5fe0a9f8933eebb06e",
+    "agent/exchange/rate_limiter.py": "0eab991ecf9f55dc93545e052e7848226266d4a2cbe38745162f38f4686c2b0c",
+    "agent/exchange/signing.py": "8ad94fe28b7bf106704adb961ac0415f0607c3842a53dd167d340d600858268c",
+    "agent/exchange/trade_client.py": "b65360d372462deb5aaa4c2359f729190fb5545a9eb28be3a277e6805d6e0fbb",
+    "agent/execution/__init__.py": "c1d919825f2afd91009d36dd9adcb27d5a8caa0adb53426c76a8223a4c13ac42",
+    "agent/execution/deadman.py": "3ce076d67c0e86c25b37b1310dbb9acc6d402c45aa46ab80d930bbd764099c9a",
+    "agent/execution/executor.py": "485855438313350defcacb73495433e8ce186010e3a966a30f0cd6d3719faad1",
+    "agent/execution/live_gate.py": "c9da4bb864d5ac19d193dde1d3e61a5de3181de4b519ef93d0e831d6ade1bd20",
+    "agent/execution/reconcile.py": "005fd34e7b40e3d7f2ec306d7ee680d3adb3fa08a30c9151857be98b482ec58a",
+    "agent/logging_setup.py": "53c826192b602eb2a3d257bcd1c609ed9e161be778f92208fc2803337b5dc764",
+    "agent/main.py": "ae590208a07198b4e2503edf344e000745a56cf3f8b4d8cb714ea8230f60b8a0",
+    "agent/office/__init__.py": "307f277e40161122a848690230e3f2c658d55ce8a508674a979aa7e4acb2e75a",
+    "agent/office/__main__.py": "ec670bcc92ada502356c7a700847ff54899bfe1fde25178be08340f165e7077a",
+    "agent/office/server.py": "1d53529a66d5c9449437ef2f639a4da023ddac4ef7e03bbe75f127b116320a73",
+    "agent/office/state.py": "5c0f2e914b00b54c2ac038ddf7bda389f6d9bab36624857f94c5bdfd79830407",
+    "agent/ops/__init__.py": "d3af07ebc8669d8b5db733847cb8ef637ef1dc8627bd308370007f0564e475d1",
+    "agent/ops/backup.py": "41df7ddf658fcab611f47cc3091b7e8474723ef29781af048ea4d4d721ed9115",
+    "agent/ops/telegram_send.py": "fe6dc44aefee06c114d2e54ece845ce79165872167bd397a73975441de7e101b",
+    "agent/ops/watchdog.py": "b3bdb380c32c7762fa9e0cb7a2521ceb277be42f0594481e6dcf5e426fbbfffe",
+    "agent/portfolio/__init__.py": "afbe8dee3dd6962bd0624f598a811add6b0fce2252dfea337a847485b254b744",
+    "agent/portfolio/manager.py": "ef4e7c8ea780cbad09aea8430ecbbe5898674e3a0da83e8039cca51c93c2df0c",
+    "agent/portfolio/persistence.py": "4b96459ac916efb4e2ff1a0672623c21dcb1f17a55571dc2274cf9b8fa05a10c",
+    "agent/portfolio/portfolio.py": "6e4b558e1a42f0ac5b7a88ea1d0be395fbb8cc44dae7dc02f1d4e6def8852e09",
+    "agent/portfolio/review.py": "1b2d97e0b7736dcd7470ecec31c4e35e00416eb9bfca14d3f6524a379d0be76d",
+    "agent/reporting/__init__.py": "7c0cb5a09bf3a479814f059aeea198c391f04456997e7cd864c85aa75b8151a4",
+    "agent/reporting/daily_report.py": "0b30c4017f6dd9c3c03488a69ff2d0487d0ac97ca225ac225952f61266165a43",
+    "agent/reporting/telegram_bot.py": "8e73c3c13f62ceb25aef897d83a1dbcba00611c0105565be957fb5b34dc1e26e",
+    "agent/risk/__init__.py": "1095303448dc8e5fb69fb7743cdbb8922d0571fc5e04eed1aaa5754c820caebf",
+    "agent/risk/risk_manager.py": "80793a484cb5c75ae274baf14ae3da936242e390c4a04b7fb9ae6183579a4a9a",
+    "agent/runner.py": "dd675cd80466f327c56616d8b06e9ae852cc7227d0dd0c6c66f5460525275400",
+    "agent/storage/__init__.py": "2aa2bd82628a3352183015a2f93890057ace98e58881f8c73e02689437ef4847",
+    "agent/storage/db.py": "f59574ba2544d777f57d1eb422df0a6648384349155e6ec4ba3c4aaa5a726984",
+    "agent/strategy/__init__.py": "a1aa07f7e6f6b46214f0dcfa1b9d95cd7a3959fddd5880ac8e5f82edbaad68f6",
+    "agent/strategy/strategy.py": "0447da7efcacc79c277f73edf0e4657260e692aeaf59a1f673711512df4a5b8e"
+  },
+  "settings_sha256": "a12a4c0d42524cd69933e13ba49efcaf805b1712cac62495263999d9ff312809",
+  "requested_period": [
+    "2023-02-01",
+    "2026-01-01",
+    "2026-11-02"
+  ],
+  "rows": [
+    {
+      "window": "development",
+      "cost_multiplier": 1,
+      "variant": "baseline",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 503742.9437977116,
+        "net_pnl_idr": 203742.9437977116,
+        "total_return_pct": 67.914,
+        "annualized_return_pct": 19.46,
+        "max_drawdown_pct": 17.656,
+        "sharpe_daily_annualized": 1.183,
+        "trades_closed": 172,
+        "trades_open_at_end": 2,
+        "win_rate_pct": 48.3,
+        "avg_win_idr": 4058.9152030876253,
+        "avg_loss_idr": -1533.1366706854544,
+        "profit_factor": 2.469,
+        "total_fees_idr": 37940.100866638415,
+        "pnl_before_fees_idr": 241683.04466435002,
+        "spread_slippage_cost_idr": 6005.40453044,
+        "exit_reasons": {
+          "pm_exit": 95,
+          "pm_trim": 77,
+          "open at end": 2
+        },
+        "setups": {
+          "pm_buy": 174
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 319,
+          "VETO": 20
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            20
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 11087113.05278738
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 1,
+      "variant": "buffer_1pct",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 520572.05997979897,
+        "net_pnl_idr": 220572.05997979897,
+        "total_return_pct": 73.524,
+        "annualized_return_pct": 20.81,
+        "max_drawdown_pct": 17.353,
+        "sharpe_daily_annualized": 1.153,
+        "trades_closed": 142,
+        "trades_open_at_end": 2,
+        "win_rate_pct": 52.8,
+        "avg_win_idr": 4724.143671437227,
+        "avg_loss_idr": -2046.7173924290696,
+        "profit_factor": 2.584,
+        "total_fees_idr": 31828.719626341026,
+        "pnl_before_fees_idr": 252400.77960614,
+        "spread_slippage_cost_idr": 4992.68125589,
+        "exit_reasons": {
+          "pm_exit": 75,
+          "pm_trim": 67,
+          "open at end": 2
+        },
+        "setups": {
+          "pm_buy": 144
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 265,
+          "VETO": 16
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            16
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 9301203.86509089
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 1,
+      "variant": "minimum_aware",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 478076.9667796595,
+        "net_pnl_idr": 178076.9667796595,
+        "total_return_pct": 59.359,
+        "annualized_return_pct": 17.33,
+        "max_drawdown_pct": 12.906,
+        "sharpe_daily_annualized": 1.45,
+        "trades_closed": 200,
+        "trades_open_at_end": 0,
+        "win_rate_pct": 52.0,
+        "avg_win_idr": 3360.4089989536124,
+        "avg_loss_idr": -1785.4746782449602,
+        "profit_factor": 2.039,
+        "total_fees_idr": 43177.47887665048,
+        "pnl_before_fees_idr": 221254.44565630998,
+        "spread_slippage_cost_idr": 6798.8233092,
+        "exit_reasons": {
+          "pm_exit": 130,
+          "pm_trim": 70
+        },
+        "setups": {
+          "pm_buy": 200
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 380,
+          "VETO": 27
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            27
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 12617615.10130055
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 1,
+      "variant": "slots_3",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 468159.774891266,
+        "net_pnl_idr": 168159.774891266,
+        "total_return_pct": 56.053,
+        "annualized_return_pct": 16.49,
+        "max_drawdown_pct": 19.52,
+        "sharpe_daily_annualized": 1.173,
+        "trades_closed": 199,
+        "trades_open_at_end": 0,
+        "win_rate_pct": 46.2,
+        "avg_win_idr": 4470.701482344986,
+        "avg_loss_idr": -2272.380948453016,
+        "profit_factor": 1.692,
+        "total_fees_idr": 55422.86805166401,
+        "pnl_before_fees_idr": 223582.64294293002,
+        "spread_slippage_cost_idr": 8785.70463964,
+        "exit_reasons": {
+          "pm_exit": 149,
+          "pm_trim": 50
+        },
+        "setups": {
+          "pm_buy": 199
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 391,
+          "VETO": 23
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            23
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 16196045.60247341
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 1,
+      "variant": "combined",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 519537.7062784036,
+        "net_pnl_idr": 219537.7062784036,
+        "total_return_pct": 73.179,
+        "annualized_return_pct": 20.73,
+        "max_drawdown_pct": 15.745,
+        "sharpe_daily_annualized": 1.319,
+        "trades_closed": 166,
+        "trades_open_at_end": 0,
+        "win_rate_pct": 49.4,
+        "avg_win_idr": 5571.762714480125,
+        "avg_loss_idr": -2825.5575751067463,
+        "profit_factor": 1.925,
+        "total_fees_idr": 45111.12833480644,
+        "pnl_before_fees_idr": 264648.83461321006,
+        "spread_slippage_cost_idr": 7102.40768764,
+        "exit_reasons": {
+          "pm_exit": 118,
+          "pm_trim": 47,
+          "stop_loss": 1
+        },
+        "setups": {
+          "pm_buy": 166
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 319,
+          "VETO": 22
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            22
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 13182679.23284817
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 2,
+      "variant": "baseline",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 449504.76594393747,
+        "net_pnl_idr": 149504.76594393747,
+        "total_return_pct": 49.835,
+        "annualized_return_pct": 14.88,
+        "max_drawdown_pct": 21.429,
+        "sharpe_daily_annualized": 0.9,
+        "trades_closed": 160,
+        "trades_open_at_end": 2,
+        "win_rate_pct": 47.5,
+        "avg_win_idr": 4006.850345900519,
+        "avg_loss_idr": -1883.9124331464652,
+        "profit_factor": 1.924,
+        "total_fees_idr": 71985.85576898251,
+        "pnl_before_fees_idr": 221490.62171292,
+        "spread_slippage_cost_idr": 10875.91455209,
+        "exit_reasons": {
+          "pm_exit": 87,
+          "pm_trim": 73,
+          "open at end": 2
+        },
+        "setups": {
+          "pm_buy": 162
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 297,
+          "VETO": 71
+        },
+        "top_veto_reasons": [
+          [
+            "spread # > max #",
+            60
+          ],
+          [
+            "#h volume # IDR < min #",
+            11
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 10518096.98553222
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 2,
+      "variant": "buffer_1pct",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 475754.74454542267,
+        "net_pnl_idr": 175754.74454542267,
+        "total_return_pct": 58.585,
+        "annualized_return_pct": 17.14,
+        "max_drawdown_pct": 20.342,
+        "sharpe_daily_annualized": 0.958,
+        "trades_closed": 137,
+        "trades_open_at_end": 2,
+        "win_rate_pct": 51.1,
+        "avg_win_idr": 4700.0483012279565,
+        "avg_loss_idr": -2336.7981003191776,
+        "profit_factor": 2.101,
+        "total_fees_idr": 62284.04884691734,
+        "pnl_before_fees_idr": 238038.79339234,
+        "spread_slippage_cost_idr": 9396.91246797,
+        "exit_reasons": {
+          "pm_exit": 71,
+          "pm_trim": 66,
+          "open at end": 2
+        },
+        "setups": {
+          "pm_buy": 139
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 257,
+          "VETO": 69
+        },
+        "top_veto_reasons": [
+          [
+            "spread # > max #",
+            53
+          ],
+          [
+            "#h volume # IDR < min #",
+            16
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 9100533.14537074
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 2,
+      "variant": "minimum_aware",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 423579.52533744555,
+        "net_pnl_idr": 123579.52533744555,
+        "total_return_pct": 41.193,
+        "annualized_return_pct": 12.56,
+        "max_drawdown_pct": 16.825,
+        "sharpe_daily_annualized": 1.062,
+        "trades_closed": 191,
+        "trades_open_at_end": 0,
+        "win_rate_pct": 49.7,
+        "avg_win_idr": 3308.5637194088026,
+        "avg_loss_idr": -1986.8127917332367,
+        "profit_factor": 1.648,
+        "total_fees_idr": 83593.98404362446,
+        "pnl_before_fees_idr": 207173.50938107,
+        "spread_slippage_cost_idr": 12647.73577778,
+        "exit_reasons": {
+          "pm_exit": 123,
+          "pm_trim": 68
+        },
+        "setups": {
+          "pm_buy": 191
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 363,
+          "VETO": 83
+        },
+        "top_veto_reasons": [
+          [
+            "spread # > max #",
+            56
+          ],
+          [
+            "#h volume # IDR < min #",
+            27
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 12214199.88948341
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 2,
+      "variant": "slots_3",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 414077.98025908606,
+        "net_pnl_idr": 114077.98025908606,
+        "total_return_pct": 38.026,
+        "annualized_return_pct": 11.69,
+        "max_drawdown_pct": 23.958,
+        "sharpe_daily_annualized": 0.825,
+        "trades_closed": 193,
+        "trades_open_at_end": 0,
+        "win_rate_pct": 43.5,
+        "avg_win_idr": 4628.976217560082,
+        "avg_loss_idr": -2520.6974496877137,
+        "profit_factor": 1.415,
+        "total_fees_idr": 107082.11022465395,
+        "pnl_before_fees_idr": 221160.09048374,
+        "spread_slippage_cost_idr": 16160.00910364,
+        "exit_reasons": {
+          "pm_exit": 143,
+          "pm_trim": 50
+        },
+        "setups": {
+          "pm_buy": 193
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 379,
+          "VETO": 43
+        },
+        "top_veto_reasons": [
+          [
+            "spread # > max #",
+            28
+          ],
+          [
+            "#h volume # IDR < min #",
+            15
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 15646129.48928316
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "development",
+      "cost_multiplier": 2,
+      "variant": "combined",
+      "start": "2023-02-02T00:00:00+00:00",
+      "end": "2026-01-01T00:00:00+00:00",
+      "metrics": {
+        "period_days": 1064.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 462762.7841461804,
+        "net_pnl_idr": 162762.7841461804,
+        "total_return_pct": 54.254,
+        "annualized_return_pct": 16.03,
+        "max_drawdown_pct": 19.475,
+        "sharpe_daily_annualized": 1.023,
+        "trades_closed": 162,
+        "trades_open_at_end": 0,
+        "win_rate_pct": 48.1,
+        "avg_win_idr": 5447.300266045251,
+        "avg_loss_idr": -3120.5551976827282,
+        "profit_factor": 1.621,
+        "total_fees_idr": 87718.51429155961,
+        "pnl_before_fees_idr": 250481.29843774,
+        "spread_slippage_cost_idr": 13291.79106884,
+        "exit_reasons": {
+          "pm_exit": 114,
+          "pm_trim": 47,
+          "stop_loss": 1
+        },
+        "setups": {
+          "pm_buy": 162
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": 317.28,
+          "eth_idr": 103.94,
+          "sol_idr": 461.85,
+          "xrp_idr": 402.98,
+          "doge_idr": 41.08,
+          "ada_idr": -5.27
+        },
+        "verdicts": {
+          "APPROVE": 311,
+          "VETO": 53
+        },
+        "top_veto_reasons": [
+          [
+            "spread # > max #",
+            30
+          ],
+          [
+            "#h volume # IDR < min #",
+            23
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 12816848.96136172
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 1,
+      "variant": "baseline",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 278239.6882606247,
+        "net_pnl_idr": -21760.3117393753,
+        "total_return_pct": -7.253,
+        "annualized_return_pct": -8.64,
+        "max_drawdown_pct": 14.756,
+        "sharpe_daily_annualized": -0.577,
+        "trades_closed": 43,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 37.2,
+        "avg_win_idr": 2005.0540910736265,
+        "avg_loss_idr": -1999.7500769233982,
+        "profit_factor": 0.594,
+        "total_fees_idr": 14591.714627415284,
+        "pnl_before_fees_idr": -7168.597111960016,
+        "spread_slippage_cost_idr": 2197.30904349,
+        "exit_reasons": {
+          "pm_trim": 14,
+          "pm_exit": 29,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 44
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 81,
+          "VETO": 2
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            2
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 4264089.60473854
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 1,
+      "variant": "buffer_1pct",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 268521.3795693819,
+        "net_pnl_idr": -31478.6204306181,
+        "total_return_pct": -10.493,
+        "annualized_return_pct": -12.46,
+        "max_drawdown_pct": 13.321,
+        "sharpe_daily_annualized": -1.254,
+        "trades_closed": 32,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 43.8,
+        "avg_win_idr": 1320.2632525492795,
+        "avg_loss_idr": -2821.1660496650684,
+        "profit_factor": 0.364,
+        "total_fees_idr": 10458.500947148108,
+        "pnl_before_fees_idr": -21020.119483469993,
+        "spread_slippage_cost_idr": 1572.07794861,
+        "exit_reasons": {
+          "pm_exit": 20,
+          "pm_trim": 12,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 33
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 62,
+          "VETO": 1
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            1
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 3056253.92961663
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 1,
+      "variant": "minimum_aware",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 280703.3994344883,
+        "net_pnl_idr": -19296.6005655117,
+        "total_return_pct": -6.432,
+        "annualized_return_pct": -7.67,
+        "max_drawdown_pct": 14.756,
+        "sharpe_daily_annualized": -0.554,
+        "trades_closed": 48,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 37.5,
+        "avg_win_idr": 2182.323597367725,
+        "avg_loss_idr": -1958.200619991259,
+        "profit_factor": 0.669,
+        "total_fees_idr": 15380.048824741676,
+        "pnl_before_fees_idr": -3916.551740770024,
+        "spread_slippage_cost_idr": 2320.29972009,
+        "exit_reasons": {
+          "pm_trim": 14,
+          "pm_exit": 34,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 49
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 92,
+          "VETO": 1
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            1
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 4494461.95930499
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 1,
+      "variant": "slots_3",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 271047.7204644358,
+        "net_pnl_idr": -28952.2795355642,
+        "total_return_pct": -9.651,
+        "annualized_return_pct": -11.47,
+        "max_drawdown_pct": 15.85,
+        "sharpe_daily_annualized": -0.872,
+        "trades_closed": 37,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 29.7,
+        "avg_win_idr": 2941.6283752887257,
+        "avg_loss_idr": -2318.312556933928,
+        "profit_factor": 0.537,
+        "total_fees_idr": 14589.55233733421,
+        "pnl_before_fees_idr": -14362.72719822999,
+        "spread_slippage_cost_idr": 2189.60829292,
+        "exit_reasons": {
+          "pm_trim": 9,
+          "pm_exit": 28,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 38
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 71
+        },
+        "top_veto_reasons": [],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 4263457.72569673
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 1,
+      "variant": "combined",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 272127.1548330417,
+        "net_pnl_idr": -27872.8451669583,
+        "total_return_pct": -9.291,
+        "annualized_return_pct": -11.05,
+        "max_drawdown_pct": 13.769,
+        "sharpe_daily_annualized": -0.975,
+        "trades_closed": 29,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 34.5,
+        "avg_win_idr": 2483.4617694634157,
+        "avg_loss_idr": -2956.4812958170437,
+        "profit_factor": 0.442,
+        "total_fees_idr": 10604.02840183827,
+        "pnl_before_fees_idr": -17268.81676512003,
+        "spread_slippage_cost_idr": 1595.57642814,
+        "exit_reasons": {
+          "pm_exit": 22,
+          "pm_trim": 7,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 30
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 57
+        },
+        "top_veto_reasons": [],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 3098780.94735192
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 2,
+      "variant": "baseline",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 262986.08004779805,
+        "net_pnl_idr": -37013.91995220195,
+        "total_return_pct": -12.338,
+        "annualized_return_pct": -14.62,
+        "max_drawdown_pct": 18.907,
+        "sharpe_daily_annualized": -1.043,
+        "trades_closed": 42,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 31.0,
+        "avg_win_idr": 2122.83948897185,
+        "avg_loss_idr": -2210.471113905818,
+        "profit_factor": 0.431,
+        "total_fees_idr": 28362.713368951954,
+        "pnl_before_fees_idr": -8651.206583249996,
+        "spread_slippage_cost_idr": 4226.09686591,
+        "exit_reasons": {
+          "pm_trim": 14,
+          "pm_exit": 28,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 43
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 79,
+          "VETO": 1
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            1
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 4144172.02936177
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 2,
+      "variant": "buffer_1pct",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 258060.67931822498,
+        "net_pnl_idr": -41939.32068177502,
+        "total_return_pct": -13.98,
+        "annualized_return_pct": -16.54,
+        "max_drawdown_pct": 16.385,
+        "sharpe_daily_annualized": -1.679,
+        "trades_closed": 32,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 37.5,
+        "avg_win_idr": 1381.3294004942277,
+        "avg_loss_idr": -2930.5734808293855,
+        "profit_factor": 0.283,
+        "total_fees_idr": 20566.98572849501,
+        "pnl_before_fees_idr": -21372.334953280013,
+        "spread_slippage_cost_idr": 3073.90230655,
+        "exit_reasons": {
+          "pm_exit": 20,
+          "pm_trim": 12,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 33
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 62
+        },
+        "top_veto_reasons": [],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 3005111.88318162
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": null,
+        "minimum_aware": false,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 2,
+      "variant": "minimum_aware",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 265257.43354045635,
+        "net_pnl_idr": -34742.56645954365,
+        "total_return_pct": -11.581,
+        "annualized_return_pct": -13.74,
+        "max_drawdown_pct": 18.907,
+        "sharpe_daily_annualized": -1.069,
+        "trades_closed": 46,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 30.4,
+        "avg_win_idr": 2481.5933986188097,
+        "avg_loss_idr": -2159.2739310930706,
+        "profit_factor": 0.503,
+        "total_fees_idr": 29385.06213792366,
+        "pnl_before_fees_idr": -5357.504321619988,
+        "spread_slippage_cost_idr": 4378.79770797,
+        "exit_reasons": {
+          "pm_trim": 14,
+          "pm_exit": 32,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 47
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 87,
+          "VETO": 1
+        },
+        "top_veto_reasons": [
+          [
+            "#h volume # IDR < min #",
+            1
+          ]
+        ],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 4293550.86761012
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": null,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 2,
+      "variant": "slots_3",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 255038.91262423398,
+        "net_pnl_idr": -44961.08737576602,
+        "total_return_pct": -14.987,
+        "annualized_return_pct": -17.71,
+        "max_drawdown_pct": 20.077,
+        "sharpe_daily_annualized": -1.417,
+        "trades_closed": 36,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 19.4,
+        "avg_win_idr": 3982.18361111293,
+        "avg_loss_idr": -2460.6379277384185,
+        "profit_factor": 0.391,
+        "total_fees_idr": 28354.73725657602,
+        "pnl_before_fees_idr": -16606.35011919,
+        "spread_slippage_cost_idr": 4225.53850904,
+        "exit_reasons": {
+          "pm_trim": 8,
+          "pm_exit": 28,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 37
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 70
+        },
+        "top_veto_reasons": [],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 4143006.61259147
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 0.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    },
+    {
+      "window": "verification",
+      "cost_multiplier": 2,
+      "variant": "combined",
+      "start": "2026-01-02T00:00:00+00:00",
+      "end": "2026-11-02T00:00:00+00:00",
+      "metrics": {
+        "period_days": 304.0,
+        "initial_equity_idr": 300000.0,
+        "final_equity_idr": 260510.22351361733,
+        "net_pnl_idr": -39489.77648638267,
+        "total_return_pct": -13.163,
+        "annualized_return_pct": -15.59,
+        "max_drawdown_pct": 16.875,
+        "sharpe_daily_annualized": -1.42,
+        "trades_closed": 29,
+        "trades_open_at_end": 1,
+        "win_rate_pct": 31.0,
+        "avg_win_idr": 2402.320517523831,
+        "avg_loss_idr": -3197.4949436391275,
+        "profit_factor": 0.338,
+        "total_fees_idr": 20774.45441712267,
+        "pnl_before_fees_idr": -18715.32206926,
+        "spread_slippage_cost_idr": 3110.90101178,
+        "exit_reasons": {
+          "pm_exit": 22,
+          "pm_trim": 7,
+          "open at end": 1
+        },
+        "setups": {
+          "pm_buy": 30
+        },
+        "buy_and_hold_pct": {
+          "btc_idr": -4.63,
+          "eth_idr": -18.18,
+          "sol_idr": -19.37,
+          "xrp_idr": -28.07,
+          "doge_idr": -35.64,
+          "ada_idr": -41.28
+        },
+        "verdicts": {
+          "APPROVE": 57
+        },
+        "top_veto_reasons": [],
+        "events": [],
+        "execution_timeframe": "1D",
+        "signal_delay_s": 0,
+        "fill_fraction": 1.0,
+        "partial_fills": 0,
+        "turnover_idr": 3035425.83534814
+      },
+      "portfolio_settings": {
+        "enabled": true,
+        "target_vol": 0.2,
+        "trend_ema": 100,
+        "trend_buffer_pct": 1.0,
+        "max_positions": 3,
+        "minimum_aware": true,
+        "execution_style": "taker",
+        "maker_wait_minutes": 5,
+        "vol_lookback": 30,
+        "cov_lookback": 60,
+        "max_weight": 0.45,
+        "rebalance_days": 7,
+        "react_to_changes": true,
+        "alerts": true,
+        "alert_band_pct": 2.0,
+        "plan_valid_hours": 36,
+        "band_pct": 5.0,
+        "min_trade_idr": 15000.0,
+        "stop_atr_mult": 6.0,
+        "review_weekday": "mon",
+        "review_time": "21:30",
+        "review_max_vol_ratio": 1.5,
+        "review_warn_drawdown_pct": 25.0,
+        "review_bad_drawdown_pct": 35.0,
+        "review_max_gap_pp": 3.0,
+        "review_bad_gap_pp": 8.0,
+        "review_max_fees_pct_month": 1.0
+      }
+    }
+  ],
+  "screen": {
+    "buffer_1pct": {
+      "passes_screen": false,
+      "reasons": [
+        "verification/1x: net return not positive and better than baseline",
+        "verification/2x: net return not positive and better than baseline"
+      ]
+    },
+    "minimum_aware": {
+      "passes_screen": false,
+      "reasons": [
+        "development/1x: net return not positive and better than baseline",
+        "development/2x: net return not positive and better than baseline",
+        "verification/1x: net return not positive and better than baseline",
+        "verification/2x: net return not positive and better than baseline"
+      ]
+    },
+    "slots_3": {
+      "passes_screen": false,
+      "reasons": [
+        "development/1x: net return not positive and better than baseline",
+        "development/2x: net return not positive and better than baseline",
+        "development/2x: drawdown above baseline+2pp or 30%",
+        "verification/1x: net return not positive and better than baseline",
+        "verification/2x: net return not positive and better than baseline"
+      ]
+    },
+    "combined": {
+      "passes_screen": false,
+      "reasons": [
+        "verification/1x: net return not positive and better than baseline",
+        "verification/2x: net return not positive and better than baseline"
+      ]
+    }
+  },
+  "limitations": [
+    "Verification dates may overlap earlier project research; not a pristine holdout.",
+    "OHLC synthetic books cannot reproduce historical queue position, outages or real partial fills.",
+    "Passive fills last one execution bar; intrabar protective stops assume full execution.",
+    "No automatic parameter promotion; screen is not proof of future profitability."
+  ]
+}

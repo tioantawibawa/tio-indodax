@@ -59,6 +59,7 @@ def shadow_return(closes: pd.DataFrame, p: PortfolioSettings, start: pd.Timestam
         return None
     rets = closes.pct_change()
     w = pd.Series(0.0, index=closes.columns)
+    eligible: set[str] = set()
     eq, last_rb = 1.0, None
     for i, t in enumerate(days):
         if i > 0:
@@ -68,7 +69,8 @@ def shadow_return(closes: pd.DataFrame, p: PortfolioSettings, start: pd.Timestam
             eq *= gross
         if last_rb is None or (t - last_rb).days >= p.rebalance_days:
             hist = {c: closes.loc[:t, c].dropna() for c in closes.columns}
-            target, _ = target_weights(hist, p)
+            target, diag = target_weights(hist, p, eligible)
+            eligible = set(diag.get("trend_eligible", diag.get("eligible", [])))
             tgt = pd.Series(target).reindex(closes.columns).fillna(0.0)
             eq -= eq * float((tgt - w).abs().sum()) * TRADE_COST
             w, last_rb = tgt, t

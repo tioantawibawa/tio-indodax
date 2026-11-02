@@ -27,11 +27,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--end", help="YYYY-MM-DD (UTC), exclusive")
     ap.add_argument("--spread", type=float, default=0.10)
     ap.add_argument("--slippage", type=float, default=0.10)
+    ap.add_argument("--execution-timeframe", help="quote/stop timeframe, e.g. 15; keeps daily signals")
+    ap.add_argument("--signal-delay", type=int, default=0, help="signal availability delay in seconds")
+    ap.add_argument("--fill-fraction", type=float, default=1.0)
     args = ap.parse_args(argv)
 
     s = load_settings(args.settings)
     infos = load_pair_infos(args.data)
-    data = {p: {tf: load_history(args.data, p, tf) for tf in s.strategy.timeframes} for p in s.market.whitelist}
+    tfs = set(s.strategy.timeframes) | ({args.execution_timeframe} if args.execution_timeframe else set())
+    data = {p: {tf: load_history(args.data, p, tf) for tf in tfs} for p in s.market.whitelist}
     data = {p: d for p, d in data.items() if all(len(v) for v in d.values())}
     start = None
     if args.months:
@@ -39,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.start:
         start = datetime.fromisoformat(args.start).replace(tzinfo=timezone.utc)
     end = datetime.fromisoformat(args.end).replace(tzinfo=timezone.utc) if args.end else None
-    r = Backtester(s, data, infos, BacktestConfig(spread_pct=args.spread, slippage_pct=args.slippage),
+    r = Backtester(s, data, infos, BacktestConfig(spread_pct=args.spread, slippage_pct=args.slippage,
+                   execution_timeframe=args.execution_timeframe, signal_delay_s=args.signal_delay,
+                   fill_fraction=args.fill_fraction),
                    start=start, end=end).run()
     path = write_report(r, args.out, title=f"Backtest {', '.join(s.market.whitelist)}")
     print(path.read_text())

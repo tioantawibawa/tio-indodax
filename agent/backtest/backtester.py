@@ -4,7 +4,7 @@ The same ``Strategy``, ``RiskManager``, ``Portfolio`` and ``DecisionEngine``
 used live make every decision here; only market data and fills are simulated.
 
 Simulation model (conservative where a choice exists):
-- Timeline: every close of an entry-timeframe candle (15m). Higher
+- Timeline: every close of the configured execution (or entry) timeframe. Higher
   timeframes only contribute candles that had already closed — no lookahead.
 - Quotes: historical orderbooks are not available, so bid/ask are the close
   -/+ half of an assumed spread; depth per level is a fraction of the bar's
@@ -42,6 +42,7 @@ import structlog
 from agent.analysis.costs import CostModel
 from agent.analysis.regime import min_bars
 from agent.analysis.signals import TimeframeFeatures, feature_frame, row_to_features
+from agent.backtest.paper_broker import _walk
 from agent.config import Settings
 from agent.data.market_data import PairMarket
 from agent.engine import DecisionEngine
@@ -61,6 +62,17 @@ class BacktestConfig:
     slippage_pct: float = 0.10     # extra adverse price on stop-loss / market exits
     depth_fraction: float = 0.2    # orderbook depth per level, as a fraction of the bar's volume
     level_step_pct: float = 0.05   # distance between synthetic orderbook levels
+    execution_timeframe: str | None = None  # finer quote/stop timeline; signals keep their original TF
+    signal_delay_s: int = 0        # wait after a signal candle closes before using it
+    fill_fraction: float = 1.0     # stress: fraction of available synthetic depth executable
+
+    def __post_init__(self):
+        if self.execution_timeframe is not None and self.execution_timeframe not in TIMEFRAMES:
+            raise ValueError("unsupported execution timeframe")
+        if self.signal_delay_s < 0 or not 0 < self.fill_fraction <= 1:
+            raise ValueError("signal_delay_s must be >= 0; fill_fraction must be in (0, 1]")
+        if min(self.spread_pct, self.slippage_pct, self.level_step_pct) < 0 or self.depth_fraction <= 0:
+            raise ValueError("invalid spread/slippage/depth assumptions")
 
 
 @dataclass
@@ -146,6 +158,13 @@ class Backtester:
         self.infos = pair_infos
         self.tfs = settings.strategy.timeframes
         self.entry_tf = self.tfs[0]
+        self.execution_tf = cfg.execution_timeframe or self.entry_tf
+        if TIMEFRAMES[self.execution_tf] > TIMEFRAMES[self.entry_tf]:
+            raise ValueError("execution timeframe must be no coarser than the signal timeframe")
+        for pair in self.pairs:
+            for tf in {*self.tfs, self.execution_tf}:
+                if tf not in data[pair] or data[pair][tf].empty:
+                    raise ValueError(f"missing {tf} history for {pair}")
         self.data = data
         self.db = Database(db_path)
         self.engine = _BacktestEngine(settings, self.db, MODE)
@@ -168,9 +187,9 @@ class Backtester:
                 df = data[p][tf]
                 self.frames[(p, tf)] = feature_frame(df, settings.strategy)
                 self.close_times[(p, tf)] = df.index.as_unit("s").asi8 + TIMEFRAMES[tf]
-            base = data[p][self.entry_tf]
+            base = data[p][self.execution_tf]
             self.vol24[p] = (base["volume"] * base["close"]).rolling(
-                int(86400 / TIMEFRAMES[self.entry_tf]), min_periods=1).sum()
+                int(86400 / TIMEFRAMES[self.execution_tf]), min_periods=1).sum()
 
     # ------------------------------------------------------------ helpers
 
@@ -213,9 +232,9 @@ class Backtester:
         pf = Portfolio(cap)
         base_idx = None
         for p in self.pairs:
-            idx = self.data[p][self.entry_tf].index
+            idx = self.data[p][self.execution_tf].index
             base_idx = idx if base_idx is None else base_idx.union(idx)
-        dur = TIMEFRAMES[self.entry_tf]
+        dur = TIMEFRAMES[self.execution_tf]
         # warm-up: start once the first pair has enough history on its slowest TF
         st = self.s.strategy
         need_bars = max(min_bars(st.ema_slow, st.adx_period, st.atr_period),
@@ -248,6 +267,8 @@ class Backtester:
         events: list[tuple[datetime, str]] = []
         equity_pts: list[tuple[datetime, float]] = []
         spread_slip = ZERO
+        partial_fills = 0
+        turnover = ZERO
         seq = 0
 
         def new_order(pair, side, otype, price, qty, t, decision_id, emergency, status) -> str:
@@ -262,11 +283,12 @@ class Backtester:
         def fill(pair: str, side: str, qty: Decimal, price: Decimal, fee: Decimal, t: datetime,
                  reason: str, emergency: bool = False, sl=None, tp=None, setup: str = "",
                  decision_id: int | None = None, coid: str | None = None) -> None:
+            nonlocal turnover
+            turnover += qty * price
             if coid is None:
                 coid = new_order(pair, side, "market" if emergency else "limit", price, qty, t,
                                  decision_id, emergency, "FILLED")
-            else:
-                self.db.update_order(coid, status="FILLED", filled_qty=qty, ts=t)
+            self.db.update_order(coid, status="FILLED", filled_qty=qty, ts=t)
             r = pf.apply_fill(pair, side, qty, price, fee, t, sl, tp, reason)
             self.db.record_fill(trade_id=coid, client_order_id=coid, ts=t, mode=MODE, pair=pair, side=side,
                                 price=price, qty=qty, fee_idr=fee, realized_pnl=r.realized_pnl)
@@ -294,16 +316,29 @@ class Backtester:
             t_open = int(ts.timestamp())
             t_close = t_open + dur
             now = datetime.fromtimestamp(t_close, tz=timezone.utc)
-            bars = {p: self.data[p][self.entry_tf].loc[ts] for p in self.pairs
-                    if ts in self.data[p][self.entry_tf].index}
+            bars = {p: self.data[p][self.execution_tf].loc[ts] for p in self.pairs
+                    if ts in self.data[p][self.execution_tf].index}
 
-            # 1) resolve buy orders placed at the previous close against this candle
+            # 1) Passive orders are valid for the next execution candle only.
+            # A touch is insufficient: require a trade through the limit. This
+            # is a conservative OHLC approximation, not a reconstructed queue.
             for o in pending:
-                bar = bars[o["pair"]]
-                if _d(bar["low"]) < o["price"]:
-                    notional = o["qty"] * o["price"]
-                    fill(o["pair"], "buy", o["qty"], o["price"], self._fee(o["pair"], notional, True),
+                bar = bars.get(o["pair"])
+                crossed = bar is not None and (_d(bar["low"]) < o["price"] if o["side"] == "buy"
+                                               else _d(bar["high"]) > o["price"])
+                if crossed:
+                    available = _d(bar["volume"] * self.cfg.depth_fraction * self.cfg.fill_fraction)
+                    qty = self.infos[o["pair"]].round_qty(min(o["qty"], available))
+                    if o["side"] == "sell":
+                        held = pf.positions.get(o["pair"])
+                        qty = min(qty, held.qty if held else ZERO)
+                    notional = qty * o["price"]
+                    if qty > 0:
+                        fill(o["pair"], o["side"], qty, o["price"], self._fee(o["pair"], notional, True),
                          now, o["reason"], sl=o["sl"], tp=o["tp"], setup=o["setup"], coid=o["coid"])
+                    if qty < o["qty"]:
+                        partial_fills += int(qty > 0)
+                        self.db.update_order(o["coid"], status="CANCELLED", filled_qty=qty, ts=now)
                 else:
                     self.db.update_order(o["coid"], status="CANCELLED", ts=now)
             pending = []
@@ -335,12 +370,15 @@ class Backtester:
             markets = {}
             feats = {}
             for p in bars:
-                f = self._features_at(p, t_close)
+                signal_at = t_close - self.cfg.signal_delay_s
+                f = self._features_at(p, signal_at)
                 if f is None:
                     continue
                 tk, ob = self._quote(p, bars[p], float(self.vol24[p].loc[ts]), t_close)
                 # the portfolio manager needs the closed daily history (up to and including this bar)
-                candles = ({self.entry_tf: self.data[p][self.entry_tf].loc[:ts]}
+                candles = ({tf: self.data[p][tf].iloc[:int(np.searchsorted(
+                                self.close_times[(p, tf)], signal_at, side="right"))].tail(self.s.strategy.lookback_bars)
+                            for tf in self.tfs}
                            if self.s.portfolio.enabled else {})
                 markets[p] = PairMarket(pair=p, info=self.infos[p], ticker=tk, orderbook=ob,
                                         candles=candles, fetched_at=float(t_close))
@@ -357,16 +395,36 @@ class Backtester:
                     continue
                 p = d.proposal
                 m = markets[p.pair]
+                passive = p.order_type == "limit" and (
+                    d.price < m.orderbook.best_ask if p.side == "buy" else d.price > m.orderbook.best_bid)
+                if passive:
+                    coid = new_order(p.pair, p.side, "limit", d.price, d.qty, now, row_id, False, "NEW")
+                    pending.append(dict(pair=p.pair, side=p.side, price=d.price, qty=d.qty,
+                                        sl=p.stop_loss, tp=p.take_profit, reason=p.setup or p.reason,
+                                        setup=p.setup, coid=coid))
+                    continue
+                if p.order_type != "market":
+                    levels = m.orderbook.asks if p.side == "buy" else m.orderbook.bids
+                    levels = tuple((px, qty * _d(self.cfg.fill_fraction)) for px, qty in levels)
+                    available, _ = _walk(levels, d.qty, d.price, p.side)
+                    qty = m.info.round_qty(available)
+                    if qty < d.qty:
+                        coid = new_order(p.pair, p.side, "limit", d.price, d.qty, now, row_id, False, "NEW")
+                        if qty > 0:
+                            _, notional = _walk(levels, qty, d.price, p.side)
+                            px = notional / qty
+                            fill(p.pair, p.side, qty, px, self._fee(p.pair, qty * px, False), now,
+                                 p.setup or p.reason, sl=p.stop_loss, tp=p.take_profit, setup=p.setup, coid=coid)
+                            partial_fills += 1
+                            spread_slip += abs(px - m.ticker.last) * qty
+                        self.db.update_order(coid, status="CANCELLED", filled_qty=qty, ts=now)
+                        continue
                 if p.side == "buy" and d.price >= m.orderbook.best_ask:
                     # marketable limit: fills now at the ask (taker)
                     px = m.orderbook.best_ask
                     spread_slip += (px - m.ticker.last) * d.qty
                     fill(p.pair, "buy", d.qty, px, self._fee(p.pair, d.qty * px, False), now, p.reason,
                          sl=p.stop_loss, tp=p.take_profit, setup=p.setup, decision_id=row_id)
-                elif p.side == "buy":
-                    coid = new_order(p.pair, "buy", "limit", d.price, d.qty, now, row_id, False, "NEW")
-                    pending.append(dict(pair=p.pair, price=d.price, qty=d.qty, sl=p.stop_loss, tp=p.take_profit,
-                                        reason=p.reason, setup=p.setup, coid=coid))
                 else:
                     px = d.price
                     if p.order_type == "market":
@@ -410,6 +468,9 @@ class Backtester:
             buy_and_hold_pct=bh, config=self.cfg,
         )
         result.metrics = compute_metrics(result)
+        result.metrics.update(execution_timeframe=self.execution_tf, signal_delay_s=self.cfg.signal_delay_s,
+                              fill_fraction=self.cfg.fill_fraction, partial_fills=partial_fills,
+                              turnover_idr=float(turnover))
         return result
 
 

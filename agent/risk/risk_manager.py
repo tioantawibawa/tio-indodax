@@ -338,7 +338,12 @@ class RiskManager:
             return veto(f"exit slippage {est_exit.slippage_pct:.3f}% > max {self._market.max_slippage_pct}%")
 
         # ---- cost vs expected move (computed here, not trusted from strategy)
-        costs = self._costs.round_trip(info, spread, est_exit.slippage_pct)
+        # A limit crossing the ask is a taker order. Reserve taker fees for
+        # unknown execution too; only a genuinely passive buy gets maker pricing.
+        entry_maker = p.order_type == "limit" and price < book.best_ask
+        costs = self._costs.round_trip(info, spread, est_exit.slippage_pct,
+                                      entry_maker=entry_maker)
+        metrics["entry_maker_estimate"] = entry_maker
         expected = (ref - price) / price * HUNDRED
         need = costs.total_pct * self._pct(self._fees.min_edge_multiple)
         metrics.update(expected_move_pct=str(expected), round_trip_cost_pct=str(costs.total_pct))

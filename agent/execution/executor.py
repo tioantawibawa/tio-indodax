@@ -106,7 +106,7 @@ class LiveExecutor:
         if delta > 0:
             stop, reason, is_stop = self._decision_meta(o["decision_id"])
             ev = self._fill(o["client_order_id"], o["pair"], o["side"], delta, st.price or Decimal(o["price"]),
-                            None, maker=not o["is_emergency"], cumulative=cumulative, now=now, reason=reason,
+                            None, maker=False, cumulative=cumulative, now=now, reason=reason,
                             stop_loss=stop if o["side"] == "buy" else None, is_stop=is_stop)
             if ev:
                 events.append(ev)
@@ -131,6 +131,9 @@ class LiveExecutor:
         events: list[FillEvent] = []
         if p.side == "sell":
             events += await self.cancel_pair(p.pair, now)       # cancel/replace older agent orders
+            if any(o["pair"] == p.pair for o in self.resting_orders()):
+                log.warning("live_replace_waits_for_cancel", pair=p.pair)
+                return events  # unknown/cancel-failed orders must resolve before another submission
             held = self.pf.positions.get(p.pair)
             qty = m.info.round_qty(min(d.qty, held.qty if held else ZERO))
             if p.order_type == "market":
@@ -196,7 +199,9 @@ class LiveExecutor:
             if o["status"] not in ("NEW", "PARTIALLY_FILLED"):
                 continue
             age = (now - datetime.fromisoformat(o["ts_created"])).total_seconds()
-            if o["side"] == "buy" and age >= self.entry_ttl_s:
+            _, setup, _ = self._decision_meta(o["decision_id"])
+            if (o["side"] == "buy" or setup in ("pm_trim_maker", "pm_exit_maker")) \
+                    and age >= self.entry_ttl_s:
                 events += await self._cancel_row(o, now)
         return events
 

@@ -212,6 +212,11 @@ class PortfolioSettings(_Frozen):
     enabled: bool = False
     target_vol: float = Field(0.20, gt=0, le=1.0)      # annualised portfolio volatility target
     trend_ema: int = Field(100, ge=10)
+    trend_buffer_pct: float = Field(0.0, ge=0, le=10)
+    max_positions: int | None = Field(None, ge=1, le=50)
+    minimum_aware: bool = False
+    execution_style: Literal["taker", "maker_first"] = "taker"
+    maker_wait_minutes: int = Field(5, ge=1, le=60)
     vol_lookback: int = Field(30, ge=10)
     cov_lookback: int = Field(60, ge=20)
     max_weight: float = Field(0.45, gt=0, le=1.0)

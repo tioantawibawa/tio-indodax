@@ -70,11 +70,14 @@ class AgentRunner:
         self.engine = DecisionEngine(settings, db, mode, llm=llm)
         self.capital_note = self._rebase_capital()
         self.pf = rebuild_portfolio(db, mode, self.capital)
+        maker_first = settings.portfolio.enabled and settings.portfolio.execution_style == "maker_first"
         if mode == "live":
             self.broker = LiveExecutor(db, self.pf, trade_client, CostModel(settings.fees),
-                                       settings.risk.emergency_exit_max_slippage_pct, mode)
+                                       settings.risk.emergency_exit_max_slippage_pct, mode,
+                                       entry_ttl_s=settings.portfolio.maker_wait_minutes * 60 if maker_first else 120)
         else:
-            self.broker = PaperBroker(db, self.pf, CostModel(settings.fees), mode)
+            self.broker = PaperBroker(db, self.pf, CostModel(settings.fees), mode,
+                                      resting_ttl_min=settings.portfolio.maker_wait_minutes if maker_first else 30)
         self.last_recon = None
         self.started_at = now()
         self.consecutive_errors = 0

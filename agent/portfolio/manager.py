@@ -42,7 +42,9 @@ def _d(x: float) -> Decimal:
     return Decimal(repr(float(x)))
 
 
-def target_weights(closes: Mapping[str, pd.Series], p: PortfolioSettings) -> tuple[dict[str, float], dict]:
+def target_weights(closes: Mapping[str, pd.Series], p: PortfolioSettings,
+                   previous_eligible: set[str] | None = None,
+                   minimum_weights: Mapping[str, float] | None = None) -> tuple[dict[str, float], dict]:
     """Target weight per pair (sum <= 1; the rest is cash) and diagnostics. Pure function."""
     diag: dict = {"eligible": [], "excluded": {}}
     eligible, rets = [], {}
@@ -53,27 +55,44 @@ def target_weights(closes: Mapping[str, pd.Series], p: PortfolioSettings) -> tup
             diag["excluded"][pair] = f"riwayat {len(c)} hari < {need}"
             continue
         ema = c.ewm(span=p.trend_ema, adjust=False).mean().iloc[-1]
-        if not c.iloc[-1] > ema:
+        buffer = p.trend_buffer_pct / 100
+        threshold = ema * (1 - buffer if pair in (previous_eligible or set()) else 1 + buffer)
+        if not c.iloc[-1] > threshold:
             diag["excluded"][pair] = f"di bawah EMA{p.trend_ema}"
             continue
         eligible.append(pair)
         rets[pair] = c.pct_change()
     weights = {pair: 0.0 for pair in closes}
+    diag["trend_eligible"] = list(eligible)
     if not eligible:
         diag.update(scale=0.0, port_vol=None)
         return weights, diag
     r = pd.DataFrame(rets).dropna()
+    if len(r) < max(p.vol_lookback, p.cov_lookback):
+        diag.update(scale=0.0, port_vol=None, error="riwayat return bersama tidak cukup")
+        return weights, diag
     vol = r.tail(p.vol_lookback).std()
     if (vol <= 0).any() or vol.isna().any():
         diag.update(scale=0.0, port_vol=None, error="volatilitas tidak valid")
         return weights, diag
     iv = 1 / vol
+    if p.max_positions is not None and len(iv) > p.max_positions:
+        # Same inverse-volatility ranking as the original model, stable on ties.
+        selected = sorted(eligible, key=lambda k: (-float(iv[k]), k))[:p.max_positions]
+        for pair in set(eligible) - set(selected):
+            diag["excluded"][pair] = "batas jumlah posisi model"
+        eligible = selected
+        r, vol, iv = r[selected], vol[selected], iv[selected]
     w = iv / iv.sum()
     cov = r.tail(p.cov_lookback).cov().values * 365
     port_vol = float(math.sqrt(max(w.values @ cov @ w.values, 0.0)))
     scale = min(1.0, p.target_vol / port_vol) if port_vol > 0 else 0.0
     for pair in eligible:
         weights[pair] = min(float(w[pair] * scale), p.max_weight)
+        if weights[pair] < (minimum_weights or {}).get(pair, 0):
+            weights[pair] = 0.0
+            diag["excluded"][pair] = "target di bawah minimum eksekusi/stop"
+    # Unexecutable allocations remain cash; never inflate the other positions.
     diag.update(eligible=eligible, scale=scale, port_vol=port_vol,
                 vol={k: float(v * math.sqrt(365)) for k, v in vol.items()})
     return weights, diag
@@ -129,21 +148,81 @@ class PortfolioManager:
         return out
 
     def _make_plan(self, markets: Mapping[str, PairMarket], pf: Portfolio, marks, now: datetime,
-                   reason: str = "terjadwal", changes: list[str] | None = None) -> dict:
-        weights, diag = target_weights(self._closes(markets), self.p)
+                   reason: str = "terjadwal", changes: list[str] | None = None,
+                   targets: tuple | None = None) -> dict:
+        weights, diag = targets or target_weights(self._closes(markets), self.p)
         equity = pf.equity(marks)
-        plan = {"made_at": now.isoformat(), "weights": weights, "equity": str(equity),
+        plan = {"made_at": now.isoformat(), "validated_at": now.isoformat(),
+                "eligible": diag.get("trend_eligible", diag.get("eligible", [])),
+                "weights": weights, "equity": str(equity),
                 "reason": reason, "changes": changes or [],
                 "exposure_before": float(sum(pos.value(marks[k]) for k, pos in pf.positions.items()) / equity)
                 if equity > 0 else 0.0,
                 "scale": diag.get("scale"), "port_vol": diag.get("port_vol"), "excluded": diag.get("excluded"),
                 "vol": diag.get("vol")}
         self.db.set_state(PLAN_KEY.format(mode=self.mode), plan)
+        self.db.set_state(CHECK_KEY.format(mode=self.mode),
+                          max(m.candles["1D"].index[-1] for m in markets.values()).isoformat())
         hist = self.db.get_state(HISTORY_KEY.format(mode=self.mode), []) or []
         hist.append({k: plan[k] for k in ("made_at", "weights", "equity", "exposure_before", "scale", "port_vol",
                                           "reason")})
         self.db.set_state(HISTORY_KEY.format(mode=self.mode), hist[-200:])
         return plan
+
+    def _targets(self, markets, pf, marks, features, tf, plan):
+        base = min(pf.equity(marks), self.capital)
+        minimum = {}
+        if self.p.minimum_aware and base > 0:
+            for pair, m in markets.items():
+                f = (features.get(pair) or {}).get(tf)
+                ask = m.orderbook.best_ask
+                if ask is None or f is None or not math.isfinite(f.atr) or f.atr <= 0:
+                    minimum[pair] = math.inf
+                    continue
+                stop = ask - _d(self.p.stop_atr_mult) * _d(f.atr)
+                held = pf.positions.get(pair)
+                if held is not None and held.stop_loss is not None:
+                    stop = max(stop, held.stop_loss)
+                stop = m.info.round_price(stop, "buy")
+                exit_px = stop * (1 - self.emergency_slippage / 100)
+                stop_min = (m.info.min_quote or ZERO) * EXIT_MIN_MARGIN * ask / exit_px if exit_px > 0 else base * 2
+                minimum[pair] = float(max(_d(self.p.min_trade_idr),
+                    base * _d(self.p.band_pct) / 100, m.info.min_quote or ZERO,
+                    (m.info.min_base or ZERO) * ask, stop_min) / base)
+        previous = set((plan or {}).get("eligible", []))
+        if plan and "eligible" not in plan:  # migrate existing persisted plans
+            previous = {k for k, w in plan["weights"].items() if w > 0}
+        return target_weights(self._closes(markets), self.p, previous, minimum)
+
+    def _execution_price(self, pair, side, m, now, plan):
+        if self.p.execution_style != "maker_first":
+            return (m.orderbook.best_ask if side == "buy" else m.orderbook.best_bid), ""
+        # Persist the first attempt across cycles/restarts. A later attempt may
+        # cross only after the broker has cancelled/resolved the passive order.
+        key = f"{self.mode}:pm:maker:{pair}:{side}"
+        attempt = self.db.get_state(key)
+        if not attempt or attempt["plan"] != plan["made_at"]:
+            attempt = {"plan": plan["made_at"], "at": now.isoformat()}
+            self.db.set_state(key, attempt)
+        passive = now - datetime.fromisoformat(attempt["at"]) < timedelta(minutes=self.p.maker_wait_minutes)
+        if passive:
+            return (m.orderbook.best_bid if side == "buy" else m.orderbook.best_ask), "_maker"
+        return (m.orderbook.best_ask if side == "buy" else m.orderbook.best_bid), ""
+
+    def _result(self, proposals, notes, plan, now):
+        """Persist proposal progress; actual fills remain in orders/fills tables."""
+        if plan is not None:
+            progress = {k: {"status": "aligned" if v.startswith(("sesuai target", "target 0%")) else
+                           "waiting_order" if v.startswith("menunggu order") else "deferred", "reason": v}
+                        for k, v in notes.items()}
+            for proposal in proposals:
+                progress[proposal.pair] = {"status": "proposed", "side": proposal.side,
+                                           "setup": proposal.setup}
+            if progress != plan.get("execution"):
+                plan["execution"] = progress
+                plan["execution_checked_at"] = now.isoformat()
+                self.db.set_state(PLAN_KEY.format(mode=self.mode), plan)
+        return PMResult(proposals, notes, plan)
 
     # ------------------------------------------------------------ proposals
 
@@ -155,6 +234,9 @@ class PortfolioManager:
         plan = self.plan()
         complete = bool(markets) and all(k in markets for k in pf.positions) \
             and all("1D" in m.candles and len(m.candles["1D"]) for m in markets.values())
+        if complete:
+            complete = len({m.candles["1D"].index[-1] for m in markets.values()}) == 1
+        targets = None
         reason, changes = None, None
         if plan is None:
             reason = "rencana pertama"
@@ -165,27 +247,46 @@ class PortfolioManager:
             last_close = max(m.candles["1D"].index[-1] for m in markets.values()).isoformat()
             if self.db.get_state(CHECK_KEY.format(mode=self.mode)) != last_close:
                 self.db.set_state(CHECK_KEY.format(mode=self.mode), last_close)
-                fresh, _ = target_weights(self._closes(markets), self.p)
+                targets = self._targets(markets, pf, marks, features, tf, plan)
+                fresh, _ = targets
                 changes = self._changes(plan["weights"], fresh, min(pf.equity(marks), self.capital))
                 if changes:
                     reason = "perubahan rekomendasi"
+                else:
+                    # Revalidate without moving the weekly schedule or emitting
+                    # another allocation announcement for an unchanged plan.
+                    plan["validated_at"] = now.isoformat()
+                    plan["eligible"] = targets[1].get("trend_eligible", targets[1].get("eligible", []))
+                    self.db.set_state(PLAN_KEY.format(mode=self.mode), plan)
         if reason is not None:
             # never plan without data for a held coin (it would get weight 0 and be sold by mistake)
             if not complete:
-                return PMResult([], {"*": "data pasar belum lengkap — rebalance ditunda"}, plan)
+                return self._result([], {"*": "data pasar belum lengkap — rebalance ditunda"}, plan, now)
+            if targets is None:
+                targets = self._targets(markets, pf, marks, features, tf, plan)
             if changes is None and plan is not None:
-                fresh, _ = target_weights(self._closes(markets), self.p)
+                fresh, _ = targets
                 changes = self._changes(plan["weights"], fresh, min(pf.equity(marks), self.capital))
-            plan = self._make_plan(markets, pf, marks, now, reason, changes)
-        if now - datetime.fromisoformat(plan["made_at"]) > timedelta(hours=self.p.plan_valid_hours):
+            plan = self._make_plan(markets, pf, marks, now, reason, changes, targets)
+        if not complete:
+            return self._result([], {"*": "data harian belum lengkap/sinkron — rebalance ditunda"}, plan, now)
+        if now - datetime.fromisoformat(plan.get("validated_at", plan["made_at"])) > timedelta(hours=self.p.plan_valid_hours):
             for k in markets:
                 notes[k] = f"menunggu rebalance berikutnya (target {plan['weights'].get(k, 0) * 100:.0f}%)"
-            return PMResult([], notes, plan)
+            return self._result([], notes, plan, now)
 
         equity = pf.equity(marks)
         base = min(equity, self.capital)
         band = max(_d(self.p.min_trade_idr), base * _d(self.p.band_pct) / 100)
         sells, buys = [], []
+        sell_orders = [o for o in self.db.open_orders(self.mode) if o["side"] == "sell"]
+        pending_sells = {o["pair"] for o in sell_orders}
+        waiting_sells = set()
+        for order in sell_orders:
+            meta = self.db._conn.execute("SELECT setup FROM decisions WHERE id = ?",
+                                         (order["decision_id"],)).fetchone()
+            if order["status"] == "PENDING_SUBMIT" or (meta and (meta["setup"] or "").endswith("_maker")):
+                waiting_sells.add(order["pair"])
         for pair, w in plan["weights"].items():
             m = markets.get(pair)
             if m is None or m.orderbook.best_bid is None or m.orderbook.best_ask is None:
@@ -198,23 +299,31 @@ class PortfolioManager:
             delta = target - cur
             info = m.info
             if delta < 0 and held is not None and (w == 0 or -delta >= band):
+                if pair in waiting_sells:
+                    notes[pair] = "menunggu order jual selesai/dibatalkan"
+                    continue
                 bid = m.orderbook.best_bid
                 qty = held.qty if w == 0 else min(held.qty, info.round_qty(-delta / bid))
-                price = info.round_price(bid, "buy")
+                quote, suffix = self._execution_price(pair, "sell", m, now, plan)
+                price = info.round_price(quote, "sell" if suffix else "buy")
                 if qty > 0 and info.min_order_violation(price, qty):
                     notes[pair] = f"trim {qty} di bawah minimum order — dilewati"
                 elif qty > 0:
                     sells.append(TradeProposal(
                         pair=pair, side="sell", order_type="limit", price=price, qty=qty,
-                        intent="exit", confidence=1.0, setup="pm_exit" if w == 0 else "pm_trim",
+                        intent="exit", confidence=1.0, setup=("pm_exit" if w == 0 else "pm_trim") + suffix,
                         reason=f"Rebalance: bobot target {w * 100:.1f}% (nilai {cur:,.0f} -> {target:,.0f})"))
             elif delta >= band:
+                if pending_buy_idr.get(pair, ZERO) > 0:
+                    notes[pair] = "menunggu order beli selesai/dibatalkan"
+                    continue
                 f = (features.get(pair) or {}).get(tf)
                 if f is None or not (f.atr > 0):
                     notes[pair] = "indikator belum siap"
                     continue
                 ask = m.orderbook.best_ask
-                entry = info.round_price(ask, "sell")
+                quote, suffix = self._execution_price(pair, "buy", m, now, plan)
+                entry = info.round_price(quote, "buy" if suffix else "sell")
                 atr = _d(f.atr)
                 # catastrophe stop only (the weekly trend filter is the real exit): fixed, wide, not trailed
                 sl = info.round_price(entry - _d(self.p.stop_atr_mult) * atr, "buy")
@@ -235,16 +344,16 @@ class PortfolioManager:
                 buys.append(TradeProposal(
                     pair=pair, side="buy", order_type="limit", price=entry, qty=qty, intent="entry",
                     confidence=0.6, stop_loss=sl, target=info.round_price(entry + 4 * atr, "sell"),
-                    setup="pm_buy",
+                    setup="pm_buy" + suffix,
                     reason=f"Rebalance: bobot target {w * 100:.1f}% (nilai {cur:,.0f} -> {target:,.0f})"))
             else:
                 notes[pair] = (f"sesuai target {w * 100:.0f}% (selisih {delta:,.0f} < ambang {band:,.0f})"
                                if w > 0 else "target 0% — tidak dipegang")
-        if sells:
+        if sells or pending_sells:
             for b in buys:
                 notes[b.pair] = "beli menunggu penjualan selesai"
-            return PMResult(sells, notes, plan)
-        return PMResult(buys, notes, plan)
+            return self._result(sells, notes, plan, now)
+        return self._result(buys, notes, plan, now)
 
 
 def exposure(pf: Portfolio, marks: Mapping[str, Decimal]) -> float:

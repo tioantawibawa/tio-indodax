@@ -46,6 +46,10 @@ def write_report(r: BacktestResult, out_dir: str | Path, title: str = "Backtest"
         f"Periode: {r.start:%Y-%m-%d %H:%M} → {r.end:%Y-%m-%d %H:%M} UTC ({m['period_days']} hari)  ",
         f"Asumsi: spread {r.config.spread_pct}%, slippage exit {r.config.slippage_pct}%, "
         "fee/pajak/kliring dari config & /api/pairs.",
+        f"Timeline eksekusi: {r.config.execution_timeframe or 'sama dengan sinyal'}; "
+        f"delay sinyal {r.config.signal_delay_s} detik; "
+        f"fraksi depth yang bisa dieksekusi {r.config.fill_fraction}. "
+        "Order pasif memakai pendekatan trade-through pada candle berikutnya; bukan antrean order historis.",
         "",
         verdict_text(m),
         "",

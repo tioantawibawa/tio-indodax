@@ -1,0 +1,114 @@
+# RESEARCH ONLY: candidate failed the 2026 validation screen. Not promoted to active settings.
+exchange:
+  environment: production
+  public_base_url: https://indodax.com
+  tapi_url: https://indodax.com/tapi
+  tapi_v2_base_url: https://api.indodax.com
+  public_rate_limit_per_min: 150
+  request_timeout_s: 10
+  max_retries: 4
+  backoff_base_s: 0.5
+  backoff_max_s: 8
+  recv_window_ms: 5000
+  max_clock_offset_ms: 500
+market:
+  whitelist:
+  - btc_idr
+  - eth_idr
+  - sol_idr
+  - xrp_idr
+  - doge_idr
+  - ada_idr
+  min_volume_24h_idr: 1000000000
+  max_spread_pct: 0.3
+  max_slippage_pct: 0.2
+cycle:
+  interval_minutes: 5
+fees:
+  maker_pct: 0.1
+  taker_pct: 0.2
+  tax_pct: 0.12
+  clearing_pct: 0.0222
+  min_edge_multiple: 2.0
+risk:
+  agent_capital_idr: 300000
+  max_position_pct: 45
+  max_open_positions: 6
+  max_asset_exposure_pct: 45
+  daily_loss_limit_pct: 6
+  max_drawdown_pct: 40
+  max_orders_per_hour: 10
+  max_orders_per_day: 40
+  stoploss_cooldown_minutes: 30
+  require_stop_loss: true
+  emergency_exit_max_slippage_pct: 1.0
+deadman:
+  enabled: true
+  heartbeat_s: 30
+  countdown_ms: 120000
+live_gate:
+  min_paper_days: 12
+reporting:
+  timezone: Asia/Jakarta
+  daily_report_time: '21:00'
+  go_live_review_date: 2026-10-07
+  go_live_review_time: 09:00
+strategy:
+  timeframes:
+  - 1D
+  lookback_bars: 300
+  breakout_bars: 20
+  trend_ema: 100
+  atr_period: 20
+  chandelier_bars: 22
+  chandelier_atr_mult: 3.0
+  target_atr_mult: 4.0
+  risk_per_trade_pct: 1.0
+  min_confidence: 0.55
+  ema_fast: 20
+  ema_slow: 50
+  rsi_period: 14
+  adx_period: 14
+  adx_trend: 25
+  adx_range: 20
+  high_vol_atr_ratio: 2.0
+portfolio:
+  enabled: true
+  target_vol: 0.2
+  trend_ema: 100
+  vol_lookback: 30
+  cov_lookback: 60
+  max_weight: 0.45
+  rebalance_days: 7
+  react_to_changes: true
+  alerts: true
+  alert_band_pct: 2.0
+  band_pct: 5.0
+  min_trade_idr: 15000
+  stop_atr_mult: 6.0
+  review_weekday: mon
+  review_time: '21:30'
+  trend_buffer_pct: 1.0
+  max_positions: 3
+  minimum_aware: true
+  execution_style: taker
+  maker_wait_minutes: 5
+watchdog:
+  stale_minutes: 15
+  realert_minutes: 60
+  min_free_disk_mb: 500
+  max_backup_age_hours: 30
+  backup_dir: data/backups
+  backup_keep_days: 14
+  backup_to_telegram: true
+llm:
+  model: claude-opus-5
+  effort: low
+  timeout_s: 30
+  max_confidence_adjust: 0.2
+  veto_confidence: 0.7
+storage:
+  db_path: data/agent.db
+logging:
+  dir: logs
+  level: INFO
