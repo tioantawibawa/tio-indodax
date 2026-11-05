@@ -146,13 +146,13 @@ def load_order(src: str | None) -> dict | None:
     o = json.loads(sys.stdin.read() if src == "-" else Path(src).read_text())
     if not isinstance(o, dict) or "pair" not in o:
         raise InputError("--order harus JSON dari budget.py size (butuh pair, side, order_idr, est_amount, price)")
+    if o.get("ok") is False:
+        raise InputError(f"usulan budget tidak ok: {o.get('reason')}")
     return o
 
 
 def build_order(a, px, o: dict | None) -> dict:
     if o is not None:
-        if o.get("ok") is False:
-            raise InputError(f"usulan budget tidak ok: {o.get('reason')}")
         pair, side = o["pair"], o.get("side", "buy")
         idr = D(o.get("order_idr", 0), "order_idr")
         amount = D(o.get("est_amount", 0), "est_amount")

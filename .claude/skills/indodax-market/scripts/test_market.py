@@ -129,20 +129,26 @@ class CandleTests(unittest.TestCase):
             urls.append(req.full_url)
             q = dict(x.split("=") for x in req.full_url.split("?")[1].split("&"))
             lo, hi = int(q["from"]), int(q["to"])
+            step = market.TIMEFRAMES[q["tf"]]
             rows = [{"Time": t, "Open": 1, "High": 1, "Low": 1, "Close": t, "Volume": 1}
-                    for t in range((lo + 3599) // 3600 * 3600, hi + 1, 3600)]
+                    for t in range((lo + step - 1) // step * step, hi + 1, step)]
             return _Resp(json.dumps(rows).encode())
 
         now = 1_800_000_000
         with mock.patch("urllib.request.urlopen", fake):
             d = market.candles("btc_idr", "60", limit=300, now=now)
+        self.assertEqual(len(urls), 1)                      # 300 candles: one request
+        urls.clear()
+        with mock.patch("urllib.request.urlopen", fake):
+            d1 = market.candles("btc_idr", "1", limit=6000, now=now)
+        self.assertEqual((d1["count"], len(urls)), (6000, 2))   # > 5000 candles: chunked
         self.assertEqual(d["count"], 300)
-        self.assertGreaterEqual(len(urls), 2)               # 300 h > 6-day chunk
         self.assertIn("symbol=BTCIDR", urls[0])
         times = [c["time"] for c in d["candles"]]
         self.assertEqual(times, sorted(times))
         self.assertTrue(all(b - a == 3600 for a, b in zip(times, times[1:])))
         self.assertLessEqual(times[-1] + 3600, now)
+        self.assertTrue(all(b - a == 60 for a, b in zip([c["time"] for c in d1["candles"]], [c["time"] for c in d1["candles"]][1:])))
 
     def test_bad_timeframe(self):
         with self.assertRaises(market.InputError):

@@ -165,8 +165,9 @@ def trades(pair: str, limit: int = 50) -> dict:
 
 
 TIMEFRAMES = {"1": 60, "15": 900, "30": 1800, "60": 3600, "240": 14400, "1D": 86400}
-INTRADAY_CHUNK_S = 6 * 86400      # server returns at most ~7 days per intraday request
-DAILY_CHUNK = 700                 # ... and at most ~730 daily candles per request
+INTRADAY_CHUNK = 5000             # candles per intraday request (server returned 11k+ 1m candles in one call)
+DAILY_CHUNK = 700                 # server returns at most ~730 daily candles per request
+# Note: the server only keeps limited intraday history (measured 2026-11: tf 60 ≈ 27 days, tf 15 ≈ 9 days).
 
 
 def parse_candles(rows, tf: str, now: float) -> list[dict]:
@@ -190,7 +191,7 @@ def candles(pair: str, tf: str = "1D", limit: int = 200, now: float | None = Non
     dur = TIMEFRAMES[tf]
     end = int(now)
     start = end - dur * (limit + 2)
-    chunk = INTRADAY_CHUNK_S if dur < 86400 else dur * DAILY_CHUNK
+    chunk = dur * (INTRADAY_CHUNK if dur < 86400 else DAILY_CHUNK)
     rows, cursor = [], start
     while cursor <= end:
         to = min(cursor + chunk - 1, end)

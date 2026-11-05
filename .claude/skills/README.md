@@ -9,6 +9,7 @@
 | 5 | `indodax-broker` | order via Private API (HMAC-SHA512) **hanya bila `INDODAX_LIVE=true`**, selain itu paper trade di `orders.json`; live juga butuh `--confirm` + risk ALLOW segar | ✅ |
 | 6 | `indodax-alerts` | alert harga, pergerakan ≥ X%, RSI zona, EMA cross — edge-triggered, teks siap Telegram | ✅ |
 | 7 | `indodax-report` | ringkasan harian (saldo, P&L harian, order, alert) + kirim ke Telegram (Bot API) | ✅ |
+| 8 | `indodax-cycle` | siklus PAPER otomatis analyst→budget→risk→broker + timer systemd (siklus/jam, alert/5 mnt, laporan harian) | ✅ |
 
 Aturan bersama: Python 3 standard library; output JSON agar bisa dipipe antar skill; kredensial hanya
 dari environment variable (`INDODAX_API_KEY`, `INDODAX_API_SECRET`, `TELEGRAM_BOT_TOKEN`,
@@ -29,5 +30,6 @@ python3 $S/indodax-report/scripts/report.py daily --pretty
 ```
 
 State bersama di `$INDODAX_STATE_DIR` (default `~/.indodax-skills/`): `orders.json`, `paper_balance.json`,
-`risk_state.json`, `alerts.json`, `alerts_state.json`, dan file `HALT` (kill switch BUY).
+`risk_state.json`, `alerts.json`, `alerts_state.json`, `cycle_state.json`, dan file `HALT` (kill switch BUY).
+Otomatisasi paper: lihat `indodax-cycle/SKILL.md` (`systemd/install.sh`).
 Order **live** hanya bila `INDODAX_LIVE=true` + `--confirm` per order + hasil risk ALLOW ≤ 60 dtk.

@@ -1,0 +1,11 @@
+[Unit]
+Description=indodax-skills: daily summary to Telegram
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/indodax-skills/env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@PYTHON@ @SKILLS@/indodax-report/scripts/report.py daily --source paper --send
+NoNewPrivileges=true
+TimeoutStartSec=120

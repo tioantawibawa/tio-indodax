@@ -1,0 +1,12 @@
+[Unit]
+Description=indodax-skills: check alerts and send triggered ones to Telegram
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/indodax-skills/env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/bin/bash -c 'set -o pipefail; @PYTHON@ @SKILLS@/indodax-alerts/scripts/alerts.py check | @PYTHON@ @SKILLS@/indodax-report/scripts/report.py send --stdin'
+NoNewPrivileges=true
+TimeoutStartSec=120
+Nice=10

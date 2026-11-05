@@ -37,7 +37,8 @@ Format pair yang diterima: `btc_idr`, `BTC/IDR`, `btcidr`, `BTC-IDR` → dinorma
 ## `candles`
 
 `--tf` salah satu `1`, `15`, `30`, `60`, `240` (menit) atau `1D`; `--limit` maks 5000. Data diambil dari
-`/tradingview/history_v2` secara bertahap (intraday ≤ 6 hari per request, harian ≤ 700 candle).
+`/tradingview/history_v2` secara bertahap (intraday ≤ 5000 candle, harian ≤ 700 candle per request).
+Server hanya menyimpan riwayat intraday terbatas (terukur: tf 60 ≈ 27 hari, tf 15 ≈ 9 hari) — untuk tren panjang pakai `240`/`1D`.
 Hanya candle yang **sudah tutup**, urut lama → baru: `{"time","open","high","low","close","volume"}`
 (string desimal; `time` = epoch buka candle).
 

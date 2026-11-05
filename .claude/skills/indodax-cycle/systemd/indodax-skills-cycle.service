@@ -1,0 +1,12 @@
+[Unit]
+Description=indodax-skills: automatic PAPER cycle (analyst -> budget -> risk -> broker)
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/indodax-skills/env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@PYTHON@ @SKILLS@/indodax-cycle/scripts/cycle.py run --pairs @PAIRS@ --tf 240 --stop-pct 5 --notify
+NoNewPrivileges=true
+TimeoutStartSec=300
+Nice=10

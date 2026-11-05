@@ -27,6 +27,12 @@ def failed(order, idr=D(300000), hold=None, start=D(300000), halt=None, px=PX):
     return risk.evaluate(order, idr, hold or {}, px, LIM, start, halt)["failed"]
 
 
+def setUpModule():
+    p = mock.patch("urllib.request.urlopen", side_effect=AssertionError("network used in offline test"))
+    p.start()
+    unittest.addModuleCleanup(p.stop)
+
+
 class EvaluateTests(unittest.TestCase):
     def test_clean_buy_allowed(self):
         d = risk.evaluate(buy(50000), D(300000), {}, PX, LIM, D(300000))
