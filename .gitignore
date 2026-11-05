@@ -28,3 +28,9 @@ dist/
 build/
 # large per-step equity curves stay local
 /reports/**/equity.csv
+
+# indodax skills state (paper/live ledger)
+orders.json
+paper_balance.json
+risk_state.json
+.indodax-skills/
