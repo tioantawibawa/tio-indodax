@@ -54,6 +54,18 @@ def test_alert_once_repeat_hourly_then_recover():
     assert len(msgs) == 1 and "pulih" in msgs[0] and st == {}
 
 
+def test_skills_pipeline_checked_only_when_enabled():
+    assert detect(snap(skills_enabled=False, skills_last_run=None), W) == []
+    assert detect(snap(skills_enabled=True, skills_last_run=NOW - timedelta(minutes=50)), W) == []
+    stale = detect(snap(skills_enabled=True, skills_last_run=NOW - timedelta(hours=4)), W)
+    assert [p.key for p in stale] == ["skills"] and not stale[0].urgent and "Agent live tidak terpengaruh" in stale[0].text
+    failed = detect(snap(skills_enabled=True, skills_last_run=NOW, skills_failed_units=("indodax-skills-alerts",)), W)
+    assert [p.key for p in failed] == ["skills"] and "indodax-skills-alerts" in failed[0].text
+    assert "never" not in detect(snap(skills_enabled=True), W)[0].text
+    msgs, _ = decide(failed, {}, NOW, W)
+    assert "scripts.skills doctor" in msgs[0]
+
+
 async def test_snapshot_reads_heartbeat_and_positions_from_agent_db(env, tmp_path):  # noqa: F811
     make, db, md, clock, notes, _ = env
     r = make()

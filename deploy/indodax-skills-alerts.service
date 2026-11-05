@@ -1,0 +1,24 @@
+[Unit]
+Description=indodax-skills (.claude/skills, PAPER only): alerts check -> Telegram
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=indodax
+Group=indodax
+WorkingDirectory=/opt/indodax-agent
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/indodax-agent/.venv/bin/python -m scripts.skills alerts
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/indodax-agent/data
+MemoryMax=200M
+Nice=10
+TimeoutStartSec=120

@@ -1,0 +1,10 @@
+[Unit]
+Description=indodax-skills: PAPER cycle every hour (minute 07, after the agent's 5-minute cycles settle)
+
+[Timer]
+OnCalendar=*-*-* *:07:00
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,8 @@
 """Satpam: watchdog that runs OUTSIDE the agent process (systemd timer, every 5 minutes).
 
 Checks: the agent's last trading cycle (heartbeat in the DB, read-only), the systemd service state,
-free disk space and the age of the newest DB backup. Alerts go straight to Telegram (the agent's own
+free disk space, the age of the newest DB backup and — when its timers are enabled — the paper skills
+pipeline (last hourly cycle, failed indodax-skills-* units). Alerts go straight to Telegram (the agent's own
 notifier is useless when the agent is the thing that died). Each problem alerts once, repeats every
 ``realert_minutes`` while it lasts, and a recovery message follows when it clears.
 Satpam never trades, never restarts anything and never writes the agent database.
@@ -22,6 +23,10 @@ from agent.config import Settings, WatchdogSettings
 from agent.portfolio.portfolio import Portfolio
 
 
+SKILLS_STALE_H = 3                      # hourly paper cycle; alert after 3 missed hours
+SKILLS_UNITS = ("indodax-skills-cycle", "indodax-skills-alerts", "indodax-skills-report")
+
+
 @dataclass(frozen=True)
 class Problem:
     key: str
@@ -38,6 +43,10 @@ class Snapshot:
     service_state: str | None       # "active", "failed", "inactive", ... or None if unknown
     free_disk_mb: float | None
     newest_backup: datetime | None
+    # paper skills pipeline (scripts/skills.py); None when its timers are not enabled
+    skills_last_run: datetime | None = None
+    skills_enabled: bool = False
+    skills_failed_units: tuple[str, ...] = ()
 
 
 def detect(s: Snapshot, w: WatchdogSettings) -> list[Problem]:
@@ -63,6 +72,15 @@ def detect(s: Snapshot, w: WatchdogSettings) -> list[Problem]:
         if hours > w.max_backup_age_hours:
             out.append(Problem("backup", f"Backup database terakhir {hours:.0f} jam lalu "
                                          f"(maks {w.max_backup_age_hours} jam)."))
+    if s.skills_enabled:
+        if s.skills_failed_units:
+            out.append(Problem("skills", "Pipeline PAPER-SKILLS gagal: " + ", ".join(s.skills_failed_units)
+                               + ". Agent live tidak terpengaruh."))
+        elif s.skills_last_run is None or (s.now - s.skills_last_run).total_seconds() > SKILLS_STALE_H * 3600:
+            age = "belum pernah" if s.skills_last_run is None else \
+                f"terakhir {(s.now - s.skills_last_run).total_seconds() / 3600:.0f} jam lalu"
+            out.append(Problem("skills", f"Siklus PAPER-SKILLS tidak berjalan ({age}, batas {SKILLS_STALE_H} jam). "
+                                         "Agent live tidak terpengaruh."))
     return out
 
 
@@ -87,7 +105,7 @@ def decide(problems: list[Problem], state: dict, now: datetime, w: WatchdogSetti
 
 def _label(key: str) -> str:
     return {"service": "service agent", "stale": "siklus trading", "disk": "ruang disk",
-            "backup": "backup database"}.get(key, key)
+            "backup": "backup database", "skills": "pipeline paper skills"}.get(key, key)
 
 
 def _hint(key: str) -> str:
@@ -97,6 +115,8 @@ def _hint(key: str) -> str:
         "stale": "Cek: <code>sudo journalctl -u indodax-agent --since '30 min ago' --no-pager | tail -30</code>",
         "disk": "Cek: <code>df -h</code>; hapus log/backup lama bila perlu.",
         "backup": "Cek: <code>sudo systemctl status indodax-backup.timer</code>",
+        "skills": "Cek: <code>sudo bash deploy/agent-run.sh scripts.skills doctor</code> dan "
+                  "<code>sudo journalctl -u 'indodax-skills-*' -n 30 --no-pager</code>",
     }.get(key, "")
 
 
@@ -132,7 +152,18 @@ def snapshot(s: Settings, now: datetime | None = None, service_state: str | None
         pass
     backups = sorted(Path(s.watchdog.backup_dir).glob("agent-*.db.gz"))
     newest = datetime.fromtimestamp(backups[-1].stat().st_mtime, tz=timezone.utc) if backups else None
-    return Snapshot(now, hb_ts, mode, n_pos, service_state, disk, newest)
+    sk_enabled, sk_last, sk_failed = False, None, ()
+    if service_state is not None:                     # same switch as the agent-unit lookup (off in tests)
+        sk_enabled = _service_state("indodax-skills-cycle.timer") == "active"
+        if sk_enabled:
+            sk_failed = tuple(u for u in SKILLS_UNITS if _service_state(f"{u}.service") == "failed")
+            st = db_path.parent / "skills" / "cycle_state.json"
+            try:
+                ts = json.loads(st.read_text()).get("last_run", {}).get("ran_at")
+                sk_last = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
+            except (OSError, ValueError, TypeError):
+                sk_last = None
+    return Snapshot(now, hb_ts, mode, n_pos, service_state, disk, newest, sk_last, sk_enabled, sk_failed)
 
 
 def _service_state(unit: str) -> str | None:

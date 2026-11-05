@@ -114,3 +114,38 @@ lalu buka **http://localhost:18787** di browser laptop selama sesi SSH itu terbu
 ## Perintah Telegram
 `/status`, `/positions`, `/report`, `/pause`, `/resume`, `/kill CONFIRM`. Laporan harian otomatis
 pukul 21:00 WIB. Bot hanya merespons `TELEGRAM_CHAT_ID` Anda.
+
+## Pipeline paper `.claude/skills` (opsional, berdampingan dengan agent live)
+
+Delapan skill di `.claude/skills/` (market → analyst → budget → risk → broker, alerts, report, cycle)
+ikut tersalin ke `/opt/indodax-agent` oleh `install.sh` dan dijalankan oleh `scripts/skills.py` sebagai
+user `indodax` dengan isolasi systemd yang sama seperti Satpam.
+
+**Terpisah dari agent live (dijamin di kode, ada tesnya):**
+- proses skill hanya menerima `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` — **tidak pernah** API key Indodax atau
+  `INDODAX_LIVE`, jadi tidak mungkin mengirim order live;
+- state di `/opt/indodax-agent/data/skills/` (database agent tidak disentuh);
+- pesan Telegram berawalan **🧪 PAPER-SKILLS**. Bot terpisah (disarankan): tambahkan
+  `SKILLS_TELEGRAM_BOT_TOKEN` dan `SKILLS_TELEGRAM_CHAT_ID` di `.env`;
+- pair = `market.whitelist` agent; modal paper = `risk.agent_capital_idr` (dibuat otomatis di siklus pertama).
+
+| Timer | Jadwal | Isi |
+|---|---|---|
+| `indodax-skills-cycle` | tiap jam menit :07 | siklus paper analyst→budget→risk→broker, Telegram bila ada order/masalah |
+| `indodax-skills-alerts` | tiap 5 menit | alert dari `data/skills/alerts.json` → Telegram |
+| `indodax-skills-report` | 21:05 WIB | ringkasan harian paper → Telegram |
+
+Satpam ikut mengawasi: bila timer siklus aktif tetapi tidak ada siklus > 3 jam, atau unit `indodax-skills-*`
+gagal → pesan ⚠️ (tidak darurat; agent live tidak terpengaruh). Agent Office menampilkan meja **🧪 Tim Paper**.
+
+```bash
+cd ~/tio-indodax && git pull && sudo bash deploy/install.sh        # salin kode + pasang unit (tidak start)
+sudo systemctl restart indodax-office                              # bila Office dipakai: muat kode baru
+sudo bash deploy/agent-run.sh scripts.skills cycle                 # uji sekali (membuat saldo paper)
+sudo systemctl enable --now indodax-skills-cycle.timer indodax-skills-alerts.timer indodax-skills-report.timer
+sudo bash deploy/agent-run.sh scripts.skills doctor                # harus: HASIL: SEMUA OK
+sudo bash deploy/agent-run.sh scripts.skills run alerts add move btc_idr --pct 3 --window 60   # contoh alert
+journalctl -u 'indodax-skills-*' --since today --no-pager | tail -40
+```
+Mematikan: `sudo systemctl disable --now indodax-skills-cycle.timer indodax-skills-alerts.timer indodax-skills-report.timer`.
+Kill switch BUY paper: `sudo -u indodax touch /opt/indodax-agent/data/skills/HALT`.

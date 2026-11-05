@@ -54,6 +54,24 @@ async def test_paused_and_halted_shown_on_risk_desk(env):  # noqa: F811
     assert desks(build_state(db.path, r.s, clock.t))["risk"]["state"] == "down"
 
 
+def test_skills_desk_reads_paper_state(tmp_path):
+    from datetime import datetime, timezone
+
+    from agent.office.state import _skills_desk
+    now = datetime(2026, 11, 5, 12, tzinfo=timezone.utc)
+    d = tmp_path / "skills"
+    assert _skills_desk(d, now)["state"] == "off"
+    d.mkdir()
+    (d / "cycle_state.json").write_text(json.dumps({"positions": {"btc": {}}, "last_run": {
+        "ran_at": now.timestamp() - 1200, "equity_idr": 301000, "orders": 1, "problems": []}}))
+    k = _skills_desk(d, now)
+    assert k["state"] == "idle" and "BTC" in k["detail"] and "Rp 301.000" in k["detail"]
+    (d / "cycle_state.json").write_text(json.dumps({"last_run": {"ran_at": now.timestamp() - 5 * 3600}}))
+    assert _skills_desk(d, now)["state"] == "warn"
+    (d / "HALT").touch()
+    assert "Kill switch" in _skills_desk(d, now)["task"]
+
+
 def test_empty_database_does_not_crash(tmp_path):
     from tests.helpers import settings
     db = Database(tmp_path / "e.db")

@@ -177,6 +177,9 @@ def chunks(text: str, limit: int = TG_LIMIT) -> list[str]:
 
 def send_telegram(text: str, *, opener=None, sleep=time.sleep) -> int:
     tok, chat = tg_credentials()
+    prefix = os.environ.get("INDODAX_SKILLS_TG_PREFIX", "").strip()[:40]
+    if prefix:
+        text = f"{prefix}\n{text}"
     url = f"https://api.telegram.org/bot{tok}/sendMessage"
     sent = 0
     for part in chunks(text):

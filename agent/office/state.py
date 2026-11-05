@@ -11,6 +11,7 @@ import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -82,9 +83,38 @@ def build_state(db_path: str, s: Settings, now: datetime | None = None) -> dict:
     tz = ZoneInfo(s.reporting.timezone)
     db = _RO(db_path)
     try:
-        return _build(db, s, now, tz)
+        st = _build(db, s, now, tz)
     finally:
         db.close()
+    st["desks"].append(_skills_desk(Path(db_path).parent / "skills", now))
+    return st
+
+
+def _skills_desk(d: Path, now: datetime) -> dict:
+    """Paper skills pipeline (scripts/skills.py) — read-only view of data/skills/*.json."""
+    try:
+        cyc = json.loads((d / "cycle_state.json").read_text())
+    except (OSError, ValueError):
+        cyc = None
+    if cyc is None:
+        return _desk("skills", "🧪", "Tim Paper (skills)", "Pipeline paper .claude/skills", "off",
+                     "Tidak aktif", "Aktifkan: sudo systemctl enable --now indodax-skills-cycle.timer …")
+    last = cyc.get("last_run") or {}
+    ran = last.get("ran_at")
+    age = (now.timestamp() - ran) if ran else None
+    held = ", ".join(sorted(k.upper() for k in (cyc.get("positions") or {}))) or "kas"
+    detail = (f"Equity paper {_rp(last.get('equity_idr', 0))} · posisi: {held} · "
+              f"order siklus terakhir {last.get('orders', 0)}")
+    if (d / "HALT").exists():
+        return _desk("skills", "🧪", "Tim Paper (skills)", "Pipeline paper .claude/skills", "warn",
+                     "Kill switch paper aktif (file HALT)", detail)
+    if age is None or age > 3 * 3600:
+        return _desk("skills", "🧪", "Tim Paper (skills)", "Pipeline paper .claude/skills", "warn",
+                     f"Siklus paper terakhir {_ago(age)} — cek timer", detail)
+    problems = last.get("problems") or []
+    return _desk("skills", "🧪", "Tim Paper (skills)", "Pipeline paper .claude/skills",
+                 "warn" if problems else ("working" if age < 600 else "idle"),
+                 f"Siklus paper {_ago(age)}" + (f" · {len(problems)} masalah" if problems else ""), detail)
 
 
 def _build(db: _RO, s: Settings, now: datetime, tz: ZoneInfo) -> dict:

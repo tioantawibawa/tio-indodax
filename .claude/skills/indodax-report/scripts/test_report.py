@@ -6,7 +6,6 @@ import json
 import os
 import sys
 import tempfile
-import time
 import unittest
 import urllib.error
 import urllib.parse
@@ -114,6 +113,17 @@ class SendTests(Base):
         self.assertEqual(seen[0][1], {"chat_id": CHAT, "text": "Indodax alert\nBTC naik", "disable_web_page_preview": "true"})
         self.assertTrue(seen[0][0].endswith("/sendMessage"))
         self.assertNotIn(TOKEN, out + err)
+
+    def test_prefix_from_env(self):
+        seen = []
+        os.environ["INDODAX_SKILLS_TG_PREFIX"] = "🧪 PAPER-SKILLS"
+        try:
+            with mock.patch("urllib.request.urlopen",
+                            lambda req, timeout: seen.append(urllib.parse.parse_qs(req.data.decode())) or _Resp(b'{"ok":true}')):
+                report.send_telegram("halo")
+        finally:
+            del os.environ["INDODAX_SKILLS_TG_PREFIX"]
+        self.assertEqual(seen[0]["text"], ["🧪 PAPER-SKILLS\nhalo"])
 
     def test_empty_alerts_sends_nothing(self):
         with mock.patch("urllib.request.urlopen", side_effect=AssertionError("must not send")):
