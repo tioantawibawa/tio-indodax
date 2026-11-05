@@ -2,8 +2,8 @@
 
 | Urutan | Skill | Fungsi | Status |
 |---|---|---|---|
-| 1 | `indodax-market` | ticker / orderbook / trades / pairs (Public API, read-only) | ✅ |
-| 2 | `indodax-analyst` | SMA, EMA, RSI dari trade history | rencana |
+| 1 | `indodax-market` | ticker / orderbook / trades / candles / pairs (Public API, read-only) | ✅ |
+| 2 | `indodax-analyst` | SMA, EMA, RSI + bias tren dari candle atau trade history | ✅ |
 | 3 | `indodax-budget` | sizing dari saldo IDR, cash buffer, cap per koin | rencana |
 | 4 | `indodax-risk` | max loss per trade, max exposure per koin, daily loss limit | rencana |
 | 5 | `indodax-broker` | order via Private API (HMAC-SHA512) **hanya bila `INDODAX_LIVE=true`**, selain itu paper trade di `orders.json` | rencana |

@@ -112,5 +112,42 @@ class FetchTests(unittest.TestCase):
             self.assertEqual(market.main(["ticker", "bad;pair"]), 2)
 
 
+class CandleTests(unittest.TestCase):
+    def test_closed_only_sorted_dedup(self):
+        rows = [{"Time": 172800, "Open": 3, "High": 3, "Low": 3, "Close": 3, "Volume": 1},   # still open
+                {"Time": 86400, "Open": 2, "High": 2.5, "Low": 1.5, "Close": 2, "Volume": 1},
+                {"Time": 0, "Open": 1, "High": 1, "Low": 1, "Close": 1, "Volume": 1},
+                {"Time": 86400, "Open": 2, "High": 2.5, "Low": 1.5, "Close": 2.2, "Volume": 1}]
+        got = market.parse_candles(rows, "1D", now=172800 + 100)
+        self.assertEqual([c["time"] for c in got], [0, 86400])
+        self.assertEqual(got[1]["close"], "2.2")
+
+    def test_chunked_fetch_and_limit(self):
+        urls = []
+
+        def fake(req, timeout):
+            urls.append(req.full_url)
+            q = dict(x.split("=") for x in req.full_url.split("?")[1].split("&"))
+            lo, hi = int(q["from"]), int(q["to"])
+            rows = [{"Time": t, "Open": 1, "High": 1, "Low": 1, "Close": t, "Volume": 1}
+                    for t in range((lo + 3599) // 3600 * 3600, hi + 1, 3600)]
+            return _Resp(json.dumps(rows).encode())
+
+        now = 1_800_000_000
+        with mock.patch("urllib.request.urlopen", fake):
+            d = market.candles("btc_idr", "60", limit=300, now=now)
+        self.assertEqual(d["count"], 300)
+        self.assertGreaterEqual(len(urls), 2)               # 300 h > 6-day chunk
+        self.assertIn("symbol=BTCIDR", urls[0])
+        times = [c["time"] for c in d["candles"]]
+        self.assertEqual(times, sorted(times))
+        self.assertTrue(all(b - a == 3600 for a, b in zip(times, times[1:])))
+        self.assertLessEqual(times[-1] + 3600, now)
+
+    def test_bad_timeframe(self):
+        with self.assertRaises(market.InputError):
+            market.candles("btc_idr", "5")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

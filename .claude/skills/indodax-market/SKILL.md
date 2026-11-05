@@ -1,6 +1,6 @@
 ---
 name: indodax-market
-description: Ambil data pasar publik Indodax (ticker, orderbook, trade terakhir, daftar pair) tanpa API key. Gunakan saat perlu harga terkini, bid/ask/spread, kedalaman orderbook, atau riwayat trade sebuah pair IDR di Indodax — langkah pertama pipeline indodax-* (market → analyst → budget → risk → broker).
+description: Ambil data pasar publik Indodax (ticker, orderbook, trade terakhir, candle OHLC, daftar pair) tanpa API key. Gunakan saat perlu harga terkini, bid/ask/spread, kedalaman orderbook, atau riwayat trade sebuah pair IDR di Indodax — langkah pertama pipeline indodax-* (market → analyst → budget → risk → broker).
 ---
 
 # indodax-market
@@ -13,7 +13,8 @@ Skrip: `scripts/market.py` (Python 3 standard library saja).
 ```bash
 python3 .claude/skills/indodax-market/scripts/market.py ticker btc_idr          # harga, bid/ask, spread, volume
 python3 .claude/skills/indodax-market/scripts/market.py orderbook btc_idr --depth 10
-python3 .claude/skills/indodax-market/scripts/market.py trades btc_idr --limit 50   # input indodax-analyst
+python3 .claude/skills/indodax-market/scripts/market.py trades btc_idr --limit 50   # trade terakhir (hanya beberapa menit)
+python3 .claude/skills/indodax-market/scripts/market.py candles btc_idr --tf 1D --limit 200   # OHLC, input indodax-analyst
 python3 .claude/skills/indodax-market/scripts/market.py pairs --quote idr        # pair yang diperdagangkan
 ```
 
@@ -32,6 +33,13 @@ Format pair yang diterima: `btc_idr`, `BTC/IDR`, `btcidr`, `BTC-IDR` → dinorma
 | `high`, `low` | 24 jam |
 | `vol_base`, `vol_idr` | volume 24 jam dalam koin dan IDR |
 | `server_time`, `age_s` | waktu server (epoch) dan umur data dalam detik — tolak data bila `age_s` > 60 |
+
+## `candles`
+
+`--tf` salah satu `1`, `15`, `30`, `60`, `240` (menit) atau `1D`; `--limit` maks 5000. Data diambil dari
+`/tradingview/history_v2` secara bertahap (intraday ≤ 6 hari per request, harian ≤ 700 candle).
+Hanya candle yang **sudah tutup**, urut lama → baru: `{"time","open","high","low","close","volume"}`
+(string desimal; `time` = epoch buka candle).
 
 ## Aturan yang harus diikuti agent
 

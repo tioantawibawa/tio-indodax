@@ -5,6 +5,7 @@
     market.py orderbook btc_idr [--depth 10] [--pretty]
     market.py trades btc_idr [--limit 50] [--pretty]
     market.py pairs [--quote idr] [--pretty]
+    market.py candles btc_idr [--tf 1D] [--limit 200] [--pretty]
 
 Prints JSON. Exit codes: 0 ok, 2 bad input / unknown pair, 3 network or API failure after retries.
 No API key is ever used or accepted.
@@ -163,6 +164,47 @@ def trades(pair: str, limit: int = 50) -> dict:
     return parse_trades(pid, fetch_json(f"/api/trades/{pid}"), limit)
 
 
+TIMEFRAMES = {"1": 60, "15": 900, "30": 1800, "60": 3600, "240": 14400, "1D": 86400}
+INTRADAY_CHUNK_S = 6 * 86400      # server returns at most ~7 days per intraday request
+DAILY_CHUNK = 700                 # ... and at most ~730 daily candles per request
+
+
+def parse_candles(rows, tf: str, now: float) -> list[dict]:
+    """Closed candles only (open + duration <= now), ascending, de-duplicated."""
+    dur = TIMEFRAMES[tf]
+    out = {}
+    for r in rows or []:
+        t = int(r["Time"])
+        if t + dur > now:
+            continue
+        out[t] = {"time": t, "open": s(dec(r["Open"])), "high": s(dec(r["High"])), "low": s(dec(r["Low"])),
+                  "close": s(dec(r["Close"])), "volume": s(dec(r["Volume"]))}
+    return [out[k] for k in sorted(out)]
+
+
+def candles(pair: str, tf: str = "1D", limit: int = 200, now: float | None = None) -> dict:
+    if tf not in TIMEFRAMES:
+        raise InputError(f"timeframe {tf!r} tidak didukung; pilih salah satu: {', '.join(TIMEFRAMES)}")
+    pid = pair_id(pair)
+    now = time.time() if now is None else now
+    dur = TIMEFRAMES[tf]
+    end = int(now)
+    start = end - dur * (limit + 2)
+    chunk = INTRADAY_CHUNK_S if dur < 86400 else dur * DAILY_CHUNK
+    rows, cursor = [], start
+    while cursor <= end:
+        to = min(cursor + chunk - 1, end)
+        data = fetch_json("/tradingview/history_v2", {"from": cursor, "symbol": pid.upper(), "tf": tf, "to": to})
+        if not isinstance(data, list):
+            raise MarketError("ohlc: respons bukan daftar candle")
+        rows += data
+        cursor = to + 1
+    got = parse_candles(rows, tf, now)[-limit:]
+    if not got:
+        raise InputError(f"tidak ada candle untuk {ticker_name(pid)} tf={tf} (pair tidak ada?)")
+    return {"pair": ticker_name(pid), "tf": tf, "count": len(got), "candles": got}
+
+
 def pairs(quote: str | None = None) -> dict:
     data = fetch_json("/api/pairs")
     if not isinstance(data, list):
@@ -190,6 +232,12 @@ def _pretty(cmd: str, d: dict) -> str:
         for (bp, bq), (ap, aq) in zip(d["bids"], d["asks"]):
             lines.append(f"BID {bp:>18} | {bq:<14}   ASK {ap:>18} | {aq}")
         return "\n".join(lines)
+    if cmd == "candles":
+        lines = [f"{d['pair'].upper()} tf={d['tf']} ({d['count']} candle tertutup, terbaru di bawah)"]
+        for k in d["candles"][-10:]:
+            ts = time.strftime("%Y-%m-%d %H:%M", time.gmtime(k["time"]))
+            lines.append(f"{ts} UTC  O {k['open']:>14}  H {k['high']:>14}  L {k['low']:>14}  C {k['close']:>14}")
+        return "\n".join(lines)
     return json.dumps(d, indent=2, ensure_ascii=False)
 
 
@@ -200,7 +248,9 @@ def main(argv=None) -> int:
     o = sub.add_parser("orderbook"); o.add_argument("pair"); o.add_argument("--depth", type=int, default=10)
     tr = sub.add_parser("trades"); tr.add_argument("pair"); tr.add_argument("--limit", type=int, default=50)
     pa = sub.add_parser("pairs"); pa.add_argument("--quote", default=None)
-    for p in (t, o, tr, pa):
+    c = sub.add_parser("candles"); c.add_argument("pair")
+    c.add_argument("--tf", default="1D", choices=list(TIMEFRAMES)); c.add_argument("--limit", type=int, default=200)
+    for p in (t, o, tr, pa, c):
         p.add_argument("--pretty", action="store_true")
     a = ap.parse_args(argv)
     try:
@@ -210,6 +260,8 @@ def main(argv=None) -> int:
             d = orderbook(a.pair, max(1, min(a.depth, 150)))
         elif a.cmd == "trades":
             d = trades(a.pair, max(1, min(a.limit, 1000)))
+        elif a.cmd == "candles":
+            d = candles(a.pair, a.tf, max(1, min(a.limit, 5000)))
         else:
             d = pairs(a.quote)
     except InputError as e:
