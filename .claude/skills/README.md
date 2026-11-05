@@ -7,7 +7,7 @@
 | 3 | `indodax-budget` | sizing dari saldo IDR, cash buffer, cap per koin, sizing berbasis stop, fee & minimum order | ✅ |
 | 4 | `indodax-risk` | ALLOW/BLOCK: max loss per trade (stop wajib), exposure per koin & total, daily loss limit, kill switch | ✅ |
 | 5 | `indodax-broker` | order via Private API (HMAC-SHA512) **hanya bila `INDODAX_LIVE=true`**, selain itu paper trade di `orders.json`; live juga butuh `--confirm` + risk ALLOW segar | ✅ |
-| 6 | `indodax-alerts` | alert harga / pergerakan signifikan | rencana |
+| 6 | `indodax-alerts` | alert harga, pergerakan ≥ X%, RSI zona, EMA cross — edge-triggered, teks siap Telegram | ✅ |
 | 7 | `indodax-report` | ringkasan harian ke Telegram (Bot API) | rencana |
 
 Aturan bersama: Python 3 standard library; output JSON agar bisa dipipe antar skill; kredensial hanya
