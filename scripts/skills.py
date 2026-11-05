@@ -306,11 +306,12 @@ def _live_checks(s, sec, cfg) -> list[tuple[str, bool, str]]:
     try:
         f = json.loads(write_fence(s, sec, live_env(".env", cfg), cfg).read_text())
         d = f["detail"]
-        ok = Decimal(f["idr"]) >= 10_000 or bool(f["holdings"])
+        # an order needs >= Rp 10.000 and may use at most 25 % of the fenced equity -> ~Rp 40.000 to trade at all
+        ok = Decimal(f["idr"]) >= 40_000 or bool(f["holdings"])
         out.append(("modal dipagari tersedia", ok,
                     f"IDR untuk skills Rp {f['idr']} (buku Rp {d['book_idr']}, bebas akun Rp {d['account_free_idr']}, "
                     f"jatah agent Rp {Decimal(d['agent_cash_claim']):.0f}) · koin {f['holdings'] or '-'}"
-                    + ("" if ok else " — tambah saldo IDR di akun agar jatah agent tidak terpakai")))
+                    + ("" if ok else " — terlalu kecil untuk order (min ±Rp 40.000); setor IDR ke akun")))
     except (RuntimeError, ValueError, OSError) as e:
         out.append(("modal dipagari tersedia", False, str(e)[:200]))
     return out
