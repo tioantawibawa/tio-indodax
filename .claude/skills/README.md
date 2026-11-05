@@ -5,7 +5,7 @@
 | 1 | `indodax-market` | ticker / orderbook / trades / candles / pairs (Public API, read-only) | ✅ |
 | 2 | `indodax-analyst` | SMA, EMA, RSI + bias tren dari candle atau trade history | ✅ |
 | 3 | `indodax-budget` | sizing dari saldo IDR, cash buffer, cap per koin, sizing berbasis stop, fee & minimum order | ✅ |
-| 4 | `indodax-risk` | max loss per trade, max exposure per koin, daily loss limit | rencana |
+| 4 | `indodax-risk` | ALLOW/BLOCK: max loss per trade (stop wajib), exposure per koin & total, daily loss limit, kill switch | ✅ |
 | 5 | `indodax-broker` | order via Private API (HMAC-SHA512) **hanya bila `INDODAX_LIVE=true`**, selain itu paper trade di `orders.json` | rencana |
 | 6 | `indodax-alerts` | alert harga / pergerakan signifikan | rencana |
 | 7 | `indodax-report` | ringkasan harian ke Telegram (Bot API) | rencana |
