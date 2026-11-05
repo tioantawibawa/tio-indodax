@@ -25,6 +25,13 @@ Langkah kelima pipeline (market → analyst → budget → risk → **broker**).
   statusnya `unknown` → cek `broker.py open` sebelum mencoba lagi (persetujuan risk yang sama tidak bisa dipakai ulang).
 - Harga dibulatkan ke tick Indodax ke arah aman (BUY turun, SELL naik); jumlah selalu dibulatkan ke bawah.
 
+## Live otomatis dengan modal dipagari
+
+`broker.py live-init --capital-idr N` (N ≤ Rp 100.000, batas keras) membuat **buku** terpisah: kas & koin skills
+dihitung dari ledger live secara konservatif (`balance --source book`), sehingga skills tidak pernah memakai uang
+lain di akun bersama. Order live: ≤ Rp 50.000, dicek terhadap buku, lalu ditunggu terisi (`--settle-s`, default
+15 dtk) — sisa yang belum terisi **dibatalkan** dan jumlah terisi dicatat (`filled_qty`).
+
 ## Perintah
 
 ```bash

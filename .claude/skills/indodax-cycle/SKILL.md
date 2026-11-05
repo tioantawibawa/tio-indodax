@@ -1,6 +1,6 @@
 ---
 name: indodax-cycle
-description: Jalankan satu siklus trading PAPER otomatis lewat seluruh pipeline indodax-* (analyst → budget → risk → broker) untuk daftar pair, dengan stop-loss, jeda beli ulang setelah stop, dan notifikasi Telegram; plus pemasang timer systemd (user, tanpa sudo) untuk siklus per jam, alert tiap 5 menit, dan laporan harian. Hanya paper — menolak jalan bila INDODAX_LIVE=true.
+description: Jalankan satu siklus trading PAPER otomatis lewat seluruh pipeline indodax-* (analyst → budget → risk → broker) untuk daftar pair, dengan stop-loss, jeda beli ulang setelah stop, dan notifikasi Telegram; plus pemasang timer systemd (user, tanpa sudo) untuk siklus per jam, alert tiap 5 menit, dan laporan harian. Default paper; LIVE otomatis hanya dengan INDODAX_LIVE=true + INDODAX_LIVE_AUTO + saldo dipagari (lewat scripts/skills.py).
 ---
 
 # indodax-cycle
@@ -51,8 +51,16 @@ Rahasia Telegram di `~/.config/indodax-skills/env` (dibuat `chmod 600` oleh inst
 Agar jalan 24/7 tanpa login, admin perlu sekali `sudo loginctl enable-linger <user>` — **minta izin pemilik dulu**.
 Timer ini terpisah dari agent live di VPS (unit, state, dan bot Telegram berbeda) dan tidak menyentuhnya.
 
+## Mode LIVE otomatis (modal dipagari)
+
+`cycle.py run|stops --live --balance-file F` hanya jalan bila `INDODAX_LIVE=true` **dan**
+`INDODAX_LIVE_AUTO=I_ACCEPT_AUTOMATIC_LIVE_TRADING` (izin tetap pemilik, menggantikan `--confirm` per order),
+dengan file saldo dipagari (umur ≤ 3 menit) dari `scripts/skills.py` di repo agent. Batas broker tetap berlaku
+(modal ≤ Rp 100.000, order ≤ Rp 50.000, sisa order dibatalkan). Equity buku −15% → file HALT.
+`cycle.py stops` = cek stop-loss saja (dipanggil tiap 5 menit). Detail: `deploy/README_DEPLOY.md`.
+
 ## Aturan yang harus diikuti agent
 
-- Siklus otomatis **hanya paper**. Jangan pernah mengubahnya untuk memakai `--confirm` atau `INDODAX_LIVE=true`.
+- Jangan pernah menyalakan live (env `INDODAX_LIVE_AUTO`, `SKILLS_LIVE=true`) atau menaikkan batas modal/order atas inisiatif sendiri — hanya pemilik.
 - Jangan memasang timer di VPS atau menjalankan `sudo` tanpa izin eksplisit pemilik di chat.
 - Hasil paper dari aturan sederhana ini bukan bukti strategi menguntungkan; nilai setelah cukup lama (≥ beberapa minggu).

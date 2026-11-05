@@ -64,6 +64,18 @@ def test_skills_pipeline_checked_only_when_enabled():
     assert "never" not in detect(snap(skills_enabled=True), W)[0].text
     msgs, _ = decide(failed, {}, NOW, W)
     assert "scripts.skills doctor" in msgs[0]
+    live = detect(snap(skills_enabled=True, skills_last_run=NOW - timedelta(hours=4), skills_live_positions=2), W)
+    assert live[0].urgent and "2 posisi LIVE skills" in live[0].text                  # real money, no stop checks
+
+
+def test_skills_state_prefers_live_folder(tmp_path):
+    from agent.ops.watchdog import _skills_state
+    (tmp_path / "live").mkdir()
+    (tmp_path / "cycle_state.json").write_text('{"last_run": {"ran_at": 100}, "positions": {"btc": {}}}')
+    assert _skills_state(tmp_path)[1] == 0                                             # paper positions: not urgent
+    (tmp_path / "live" / "cycle_state.json").write_text('{"last_run": {"ran_at": 200}, "positions": {"btc": {}}}')
+    last, n = _skills_state(tmp_path)
+    assert last.timestamp() == 200 and n == 1
 
 
 async def test_snapshot_reads_heartbeat_and_positions_from_agent_db(env, tmp_path):  # noqa: F811

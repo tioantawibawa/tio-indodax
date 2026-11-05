@@ -56,7 +56,9 @@ def collect(date: str, source: str, now: float) -> dict:
 
     # balance + valuation
     try:
-        if source == "live":
+        if source == "book":
+            bal = broker.live_book()
+        elif source == "live":
             bal = broker.parse_getinfo(broker.tapi("getInfo", offset_ms=broker.server_offset_ms()))
         else:
             bal = broker._read(broker.paper_path(), None)
@@ -232,7 +234,8 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     dy = sub.add_parser("daily")
     dy.add_argument("--date", help="YYYY-MM-DD (WIB), default hari ini")
-    dy.add_argument("--source", choices=["paper", "live"], help="default: live bila INDODAX_LIVE=true, selain itu paper")
+    dy.add_argument("--source", choices=["paper", "live", "book"],
+                    help="default: live bila INDODAX_LIVE=true, selain itu paper; book = modal live skills yang dipagari")
     dy.add_argument("--send", action="store_true")
     sd = sub.add_parser("send")
     g = sd.add_mutually_exclusive_group(required=True)

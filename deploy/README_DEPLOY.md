@@ -149,3 +149,42 @@ journalctl -u 'indodax-skills-*' --since today --no-pager | tail -40
 ```
 Mematikan: `sudo systemctl disable --now indodax-skills-cycle.timer indodax-skills-alerts.timer indodax-skills-report.timer`.
 Kill switch BUY paper: `sudo -u indodax touch /opt/indodax-agent/data/skills/HALT`.
+
+### Mode LIVE otomatis untuk skills (keputusan pemilik 2026-11-05: modal dipagari Rp 100.000)
+
+**Aturan trading skills belum divalidasi** (baru paper beberapa jam). Live otomatis berarti order dikirim tanpa
+persetujuan per order. Pengaman yang dijamin kode (ada tesnya):
+
+| Pengaman | Nilai |
+|---|---|
+| Modal skills (buku terpisah dari akun) | maks Rp 100.000 (batas keras di kode) |
+| Order per transaksi | maks Rp 50.000; rugi di stop ≤ 1% modal skills; ≤ 25% per koin; cadangan kas 20% |
+| Uang agent | skills hanya memakai IDR bebas **di luar** kas agent (+ buffer Rp 5.000) dan hanya menjual koin miliknya sendiri (dihitung konservatif) — rekonsiliasi agent tidak terganggu |
+| Open order | tidak pernah ditinggal: belum terisi dalam 15 dtk → sisa dibatalkan |
+| Stop-loss | dicek tiap 5 menit (timer alerts), stop 5% per posisi; jeda 24 jam setelah stop |
+| Rugi harian | −3% modal skills → BUY berhenti hari itu |
+| Drawdown | equity buku −15% dari modal → file HALT dibuat otomatis, BUY berhenti (jual/stop tetap jalan) |
+| Key | `SKILLS_INDODAX_API_KEY` terpisah; ditolak bila sama dengan key agent; `doctor` mengecek izin withdraw |
+
+Langkah:
+1. **Setor tambahan Rp 100.000** ke akun Indodax (skills hanya memakai IDR di luar kas agent; tanpa setoran,
+   `doctor` akan menunjukkan modal dipagari ≈ Rp 0 dan skills tidak membeli apa pun).
+2. Buat **API key baru** di https://indodax.com/trade_api: izin **trade**, **tanpa withdraw**, whitelist IP VPS.
+3. Isi di `.env` agent (`sudo -u indodax nano /opt/indodax-agent/.env`):
+   ```
+   SKILLS_LIVE=true
+   SKILLS_LIVE_CONFIRM=I_ACCEPT_AUTOMATIC_LIVE_TRADING
+   SKILLS_CAPITAL_IDR=100000
+   SKILLS_INDODAX_API_KEY=<key baru>
+   SKILLS_INDODAX_API_SECRET=<secret baru>
+   ```
+4. Cek: `sudo bash deploy/agent-run.sh scripts.skills doctor` → harus **HASIL: SEMUA OK**
+   (termasuk "key skills tanpa izin withdraw" dan "modal dipagari tersedia").
+5. Siklus live pertama berjalan otomatis pada menit :07 berikutnya (atau sekarang:
+   `sudo bash deploy/agent-run.sh scripts.skills cycle`). Telegram menerima pesan **💰 LIVE-SKILLS**.
+
+Mematikan live seketika: `SKILLS_LIVE=false` di `.env` (kembali paper pada siklus berikutnya), atau hentikan
+BUY saja: `sudo -u indodax touch /opt/indodax-agent/data/skills/live/HALT`. Posisi live yang masih ada **tidak**
+dijual otomatis saat live dimatikan — jual manual di Indodax atau biarkan HALT (stop-loss tetap dicek).
+Riwayat: `sudo bash deploy/agent-run.sh scripts.skills run --live broker orders --pretty` dan
+`... run --live broker balance --source book`.

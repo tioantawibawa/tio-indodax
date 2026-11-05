@@ -47,6 +47,9 @@ RECV_WINDOW_MS = 5000
 FEE = risk.LIMITS["fee_pct"] / 100
 # Only these private methods can ever be called. Withdrawals/transfers are impossible by construction.
 ALLOWED_METHODS = frozenset({"getInfo", "trade", "openOrders", "cancelOrder", "getOrder"})
+# Hard ceilings for automated live trading (owner decision 2026-11-05: fenced capital Rp 100.000).
+LIVE_CAPITAL_MAX = Decimal(100000)
+LIVE_MAX_ORDER_IDR = Decimal(50000)
 WIB = risk.WIB
 
 
@@ -97,6 +100,45 @@ def load_ledger() -> list[dict]:
 
 def paper_path() -> Path:
     return state_dir() / "paper_balance.json"
+
+
+def book_path() -> Path:
+    return state_dir() / "live_book.json"
+
+
+def live_book(ledger: list[dict] | None = None) -> dict:
+    """The skills' OWN fenced live money, rebuilt from the ledger (never from the shared account).
+
+    Conservative on purpose so the skills can never sell coins that belong to the agent or the owner:
+    a buy is charged price × qty × (1 + fee) and credits only qty × (1 − fee) coins; a sell credits
+    price × qty × (1 − fee). An order whose outcome is unknown is charged in full and credits nothing.
+    """
+    meta = _read(book_path(), None)
+    if meta is None:
+        raise Refused("buku live skills belum ada — jalankan: broker.py live-init --capital-idr <modal>")
+    cash = D(meta["capital_idr"])
+    hold: dict[str, Decimal] = {}
+    for e in (ledger if ledger is not None else load_ledger()):
+        if e.get("mode") != "live":
+            continue
+        coin = e["pair"].split("_")[0]
+        price, st = D(e["price"]), e.get("status")
+        if st == "unknown" and e["side"] == "buy":
+            cash -= D(e["qty"]) * price * (1 + FEE)
+            continue
+        q = D(e.get("filled_qty") or 0)
+        if q <= 0:
+            continue
+        if e["side"] == "buy":
+            cash -= q * price * (1 + FEE)
+            hold[coin] = hold.get(coin, Decimal(0)) + q * (1 - FEE)
+        else:
+            cash += q * price * (1 - FEE)
+            hold[coin] = hold.get(coin, Decimal(0)) - q
+    q8 = Decimal("0.00000001")
+    return {"source": "book", "capital_idr": meta["capital_idr"],
+            "idr": str(max(cash, Decimal(0)).quantize(Decimal(1), rounding=ROUND_DOWN)),
+            "holdings": {k: fmt(v.quantize(q8, rounding=ROUND_DOWN)) for k, v in sorted(hold.items()) if v > q8}}
 
 
 # ------------------------------------------------------------------ live client
@@ -155,7 +197,8 @@ def parse_getinfo(ret: dict) -> dict:
     hold_ = {k.lower(): D(v) for k, v in (ret.get("balance_hold") or {}).items()}
     idr = bal.pop("idr", Decimal(0))
     return {"source": "live", "idr": str(idr), "idr_on_hold": str(hold_.get("idr", Decimal(0))),
-            "holdings": {k: str(v) for k, v in sorted(bal.items()) if v > 0}}
+            "holdings": {k: str(v) for k, v in sorted(bal.items()) if v > 0},
+            "holdings_on_hold": {k: str(v) for k, v in sorted(hold_.items()) if k != "idr" and v > 0}}
 
 
 # ------------------------------------------------------------------ pair rules
@@ -238,6 +281,51 @@ def paper_fill(bal: dict, coin: str, side: str, price: Decimal, qty: Decimal) ->
 
 # ------------------------------------------------------------------ commands
 
+def parse_order_state(raw: dict, coin: str) -> tuple[Decimal, Decimal, str]:
+    """(ordered qty, remaining qty, status) from a getOrder 'order' object."""
+    price = D(raw.get("price") or 0)
+    orig, remain = raw.get(f"order_{coin}"), raw.get(f"remain_{coin}")
+    if orig is not None:
+        orig, remain = D(orig), D(remain or 0)
+    else:                                                   # IDR-denominated order
+        o_rp, r_rp = raw.get("order_rp") or raw.get("order_idr"), raw.get("remain_rp") or raw.get("remain_idr")
+        if o_rp is None or price <= 0:
+            raise ApiError("getOrder: format tidak dikenal (tanpa jumlah)", definite=True)
+        orig, remain = D(o_rp) / price, D(r_rp or 0) / price
+    st = str(raw.get("status") or "").lower()
+    status = "filled" if st in ("filled", "done", "fill") else "cancelled" if st in (
+        "cancelled", "canceled", "rejected", "expired") else "open"
+    return orig, max(remain, Decimal(0)), status
+
+
+def settle(pair: str, coin: str, side: str, order_id: str, timeout_s: float, offset_ms: int,
+           sleep=None) -> tuple[Decimal, str]:
+    """Wait for a fill; cancel whatever is still open after timeout_s. Returns (filled qty, status).
+
+    The skills never leave resting orders: the live agent's Deadman Switch would cancel them anyway,
+    and its reconciliation warns about foreign orders."""
+    sleep = sleep or time.sleep
+    deadline = time.time() + timeout_s
+    while True:
+        orig, remain, status = parse_order_state(
+            tapi("getOrder", {"pair": pair, "order_id": order_id}, offset_ms=offset_ms).get("order") or {}, coin)
+        if status != "open" or time.time() >= deadline:
+            break
+        sleep(2)
+    if status == "open":
+        try:
+            tapi("cancelOrder", {"pair": pair, "order_id": order_id, "type": side, "order_type": "limit"},
+                 offset_ms=offset_ms)
+        except ApiError:
+            pass                                             # filled in the meantime -> re-read below
+        orig, remain, status = parse_order_state(
+            tapi("getOrder", {"pair": pair, "order_id": order_id}, offset_ms=offset_ms).get("order") or {}, coin)
+    filled = orig - remain
+    if status == "open":
+        return filled, "open"                                # cancel failed: reported, never silent
+    return filled, "filled" if remain <= 0 else ("partial" if filled > 0 else "cancelled")
+
+
 def cmd_order(a) -> dict:
     raw = sys.stdin.read() if a.risk == "-" else Path(a.risk).read_text()
     r = json.loads(raw)
@@ -258,6 +346,14 @@ def cmd_order(a) -> dict:
     price, qty = round_order(side, D(o["price"]), D(o["amount"]), rules)
     if qty <= 0 or qty < rules["min_qty"] or qty * price < rules["min_idr"]:
         raise Refused(f"di bawah minimum Indodax setelah pembulatan ({qty} {coin.upper()} ≈ Rp {qty * price:,.0f})")
+    if live and qty * price > LIVE_MAX_ORDER_IDR:
+        raise Refused(f"order live Rp {qty * price:,.0f} > batas keras Rp {LIVE_MAX_ORDER_IDR:,.0f} per order")
+    if live and book_path().exists():                       # fenced capital: never spend/sell beyond the book
+        book = live_book(ledger)
+        if side == "buy" and qty * price * (1 + FEE) > D(book["idr"]):
+            raise Refused(f"kas buku skills Rp {book['idr']} tidak cukup untuk order ini")
+        if side == "sell" and qty > D(book["holdings"].get(coin, "0")):
+            raise Refused(f"buku skills hanya punya {book['holdings'].get(coin, '0')} {coin.upper()}")
     coid = f"sk-{int(now)}-{secrets.token_hex(4)}"
     entry = {"ts": int(now), "date_wib": dt.datetime.fromtimestamp(now, WIB).date().isoformat(),
              "mode": "live" if live else "paper", "pair": pair, "side": side, "price": fmt(price), "qty": fmt(qty),
@@ -277,8 +373,9 @@ def cmd_order(a) -> dict:
     _write(ledger_path(), ledger + [entry])                  # record intent BEFORE sending
     params = {"pair": pair, "type": side, "price": fmt(price), "order_type": "limit",
               "time_in_force": "GTC", "client_order_id": coid, coin: fmt(qty)}
+    offset = server_offset_ms()
     try:
-        ret = tapi("trade", params, offset_ms=server_offset_ms())
+        ret = tapi("trade", params, offset_ms=offset)
     except ApiError as e:
         entry["status"] = "rejected" if e.definite else "unknown"
         entry["error"] = str(e)
@@ -287,17 +384,43 @@ def cmd_order(a) -> dict:
     entry.update(status="submitted", order_id=str(ret.get("order_id", "")),
                  response={k: v for k, v in ret.items() if not k.startswith("balance")})
     _write(ledger_path(), ledger + [entry])
-    return {**entry, "note": "LIVE — order dikirim ke Indodax; cek status dengan broker.py open"}
+    if a.settle_s > 0 and entry["order_id"]:
+        try:
+            filled, st = settle(pair, coin, side, entry["order_id"], a.settle_s, offset)
+        except ApiError as e:
+            entry.update(status="unknown", error=f"settle: {e}")
+            _write(ledger_path(), ledger + [entry])
+            raise
+        entry.update(status=st, filled_qty=fmt(filled), fee_idr=str((filled * price * FEE).quantize(Decimal(1),
+                     rounding=ROUND_CEILING)))
+        _write(ledger_path(), ledger + [entry])
+    return {**entry, "note": "LIVE — order dikirim ke Indodax"
+            + ("" if a.settle_s > 0 else "; cek status dengan broker.py open")}
 
 
 def cmd_balance(a) -> dict:
     src = a.source or ("live" if live_armed() else "paper")
+    if src == "book":
+        return live_book()
     if src == "live":
         return parse_getinfo(tapi("getInfo", offset_ms=server_offset_ms()))
     bal = _read(paper_path(), None)
     if bal is None:
         raise Refused("saldo paper belum ada — jalankan: broker.py paper-init --idr <saldo>")
     return {"source": "paper", **bal}
+
+
+def cmd_live_init(a) -> dict:
+    cap = D(a.capital_idr, "--capital-idr")
+    if not Decimal(10000) <= cap <= LIVE_CAPITAL_MAX:
+        raise InputError(f"--capital-idr harus Rp 10.000 .. Rp {LIVE_CAPITAL_MAX:,.0f} (batas keras)")
+    meta = _read(book_path(), None)
+    if meta is not None:
+        if D(meta["capital_idr"]) == cap:
+            return live_book()
+        raise Refused(f"buku live sudah ada dengan modal Rp {meta['capital_idr']} — ubah manual bila memang disengaja")
+    _write(book_path(), {"capital_idr": str(cap), "created_at": int(time.time())})
+    return live_book()
 
 
 def cmd_paper_init(a) -> dict:
@@ -349,7 +472,7 @@ def _pretty(cmd: str, d: dict) -> str:
         return (f"[{d['mode'].upper()}] {d['side'].upper()} {d['qty']} {d['pair'].split('_')[0].upper()} @ {d['price']} "
                 f"(≈ Rp {int(D(d['idr'])):,}) → {d['status']}" + (f" · fee Rp {d['fee_idr']}" if d.get("fee_idr") else "")
                 + f"\n{d['note']}")
-    if cmd in ("balance", "paper-init"):
+    if cmd in ("balance", "paper-init", "live-init"):
         h = ", ".join(f"{k.upper()} {v}" for k, v in d.get("holdings", {}).items()) or "-"
         return f"[{d['source'].upper()}] IDR Rp {int(D(d['idr'])):,} · koin: {h}"
     if cmd == "orders":
@@ -368,8 +491,11 @@ def main(argv=None) -> int:
     o.add_argument("--risk", required=True, help="output risk.py check (file atau '-')")
     o.add_argument("--confirm", action="store_true", help="konfirmasi eksplisit untuk order LIVE ini")
     o.add_argument("--max-age", type=int, default=60, help="umur maksimum hasil risk (detik, maks 300)")
+    o.add_argument("--settle-s", type=float, default=15, help="live: tunggu terisi, sisa dibatalkan (0 = biarkan)")
     b = sub.add_parser("balance")
-    b.add_argument("--source", choices=["paper", "live"])
+    b.add_argument("--source", choices=["paper", "live", "book"])
+    li = sub.add_parser("live-init")
+    li.add_argument("--capital-idr", required=True)
     pi = sub.add_parser("paper-init")
     pi.add_argument("--idr", required=True)
     pi.add_argument("--hold")
@@ -385,14 +511,15 @@ def main(argv=None) -> int:
     ca.add_argument("--order-id", required=True)
     ca.add_argument("--side", choices=["buy", "sell"], required=True)
     ca.add_argument("--confirm", action="store_true")
-    for p in (o, b, pi, ls, op, ca):
+    for p in (o, b, li, pi, ls, op, ca):
         p.add_argument("--pretty", action="store_true")
     a = ap.parse_args(argv)
-    fn = {"order": cmd_order, "balance": cmd_balance, "paper-init": cmd_paper_init, "orders": cmd_orders,
+    fn = {"order": cmd_order, "balance": cmd_balance, "paper-init": cmd_paper_init, "live-init": cmd_live_init,
+          "orders": cmd_orders,
           "open": cmd_open, "cancel": cmd_cancel}[a.cmd]
     try:
-        if a.cmd == "order" and not 1 <= a.max_age <= 300:
-            raise InputError("--max-age 1..300")
+        if a.cmd == "order" and not (1 <= a.max_age <= 300 and 0 <= a.settle_s <= 120):
+            raise InputError("--max-age 1..300, --settle-s 0..120")
         d = fn(a)
     except Refused as e:
         print(json.dumps({"refused": str(e)}, ensure_ascii=False), file=sys.stderr)

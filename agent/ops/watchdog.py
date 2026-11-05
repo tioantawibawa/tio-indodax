@@ -47,6 +47,7 @@ class Snapshot:
     skills_last_run: datetime | None = None
     skills_enabled: bool = False
     skills_failed_units: tuple[str, ...] = ()
+    skills_live_positions: int = 0          # > 0 only in LIVE skills mode: real money without stop checks
 
 
 def detect(s: Snapshot, w: WatchdogSettings) -> list[Problem]:
@@ -73,14 +74,18 @@ def detect(s: Snapshot, w: WatchdogSettings) -> list[Problem]:
             out.append(Problem("backup", f"Backup database terakhir {hours:.0f} jam lalu "
                                          f"(maks {w.max_backup_age_hours} jam)."))
     if s.skills_enabled:
+        live = s.skills_live_positions > 0
+        tag = "LIVE-SKILLS" if live else "PAPER-SKILLS"
+        risk = (f" {s.skills_live_positions} posisi LIVE skills tidak dicek stop-loss-nya!" if live
+                else " Agent live tidak terpengaruh.")
         if s.skills_failed_units:
-            out.append(Problem("skills", "Pipeline PAPER-SKILLS gagal: " + ", ".join(s.skills_failed_units)
-                               + ". Agent live tidak terpengaruh."))
+            out.append(Problem("skills", f"Pipeline {tag} gagal: " + ", ".join(s.skills_failed_units) + "." + risk,
+                               urgent=live))
         elif s.skills_last_run is None or (s.now - s.skills_last_run).total_seconds() > SKILLS_STALE_H * 3600:
             age = "belum pernah" if s.skills_last_run is None else \
                 f"terakhir {(s.now - s.skills_last_run).total_seconds() / 3600:.0f} jam lalu"
-            out.append(Problem("skills", f"Siklus PAPER-SKILLS tidak berjalan ({age}, batas {SKILLS_STALE_H} jam). "
-                                         "Agent live tidak terpengaruh."))
+            out.append(Problem("skills", f"Siklus {tag} tidak berjalan ({age}, batas {SKILLS_STALE_H} jam)." + risk,
+                               urgent=live))
     return out
 
 
@@ -152,18 +157,26 @@ def snapshot(s: Settings, now: datetime | None = None, service_state: str | None
         pass
     backups = sorted(Path(s.watchdog.backup_dir).glob("agent-*.db.gz"))
     newest = datetime.fromtimestamp(backups[-1].stat().st_mtime, tz=timezone.utc) if backups else None
-    sk_enabled, sk_last, sk_failed = False, None, ()
+    sk_enabled, sk_last, sk_failed, sk_live_pos = False, None, (), 0
     if service_state is not None:                     # same switch as the agent-unit lookup (off in tests)
         sk_enabled = _service_state("indodax-skills-cycle.timer") == "active"
         if sk_enabled:
             sk_failed = tuple(u for u in SKILLS_UNITS if _service_state(f"{u}.service") == "failed")
-            st = db_path.parent / "skills" / "cycle_state.json"
-            try:
-                ts = json.loads(st.read_text()).get("last_run", {}).get("ran_at")
-                sk_last = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
-            except (OSError, ValueError, TypeError):
-                sk_last = None
-    return Snapshot(now, hb_ts, mode, n_pos, service_state, disk, newest, sk_last, sk_enabled, sk_failed)
+            sk_last, sk_live_pos = _skills_state(db_path.parent / "skills")
+    return Snapshot(now, hb_ts, mode, n_pos, service_state, disk, newest, sk_last, sk_enabled, sk_failed, sk_live_pos)
+
+
+def _skills_state(base: Path) -> tuple[datetime | None, int]:
+    """(last hourly cycle, live positions) — live folder wins when the skills trade live."""
+    live = base / "live" / "cycle_state.json"
+    path = live if live.exists() else base / "cycle_state.json"
+    try:
+        st = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None, 0
+    ts = (st.get("last_run") or {}).get("ran_at")
+    last = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
+    return last, len(st.get("positions") or {}) if path == live else 0
 
 
 def _service_state(unit: str) -> str | None:
